@@ -132,21 +132,22 @@ if(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}
 });
 }
 
-// 4. Crypto password guessing
+// 4. Crypto password guessing — try ALL options
 if(pwOpts&&pwOpts.length>0&&!qt){
-var correctPw=s.correctPassword||(pwOpts[0]||'').toString().trim();
-// Click element matching the correct password
-var clicked=false;
+// Cycle through password options: if current password matches one, try next
+var curPw=s.password||'';
+var tryIdx=0;
+for(var pi=0;pi<pwOpts.length;pi++){if(curPw===pwOpts[pi]){tryIdx=(pi+1)%pwOpts.length;break}}
+var correctPw=s.correctPassword||pwOpts[tryIdx];
+// Click element matching the password
+var pwClicked=false;
 document.querySelectorAll('[class*="button"],[role=button]').forEach(function(c){
+if(pwClicked)return;
 var t=(c.textContent||'').trim();
-if(!clicked&&correctPw&&t===correctPw&&c.offsetHeight>0){c.click();console.log('[Bot] crypto guessed: '+t);clicked=true}
+if(correctPw&&t===correctPw&&c.offsetHeight>0){c.click();pwClicked=true;console.log('[Bot] crypto guessed: '+t)}
 });
-// Fallback: React state override with correctPassword
-if(!clicked&&s&&s.password!==undefined&&s.passwordOptions){
-s.password=s.correctPassword||s.passwordOptions[0];
-if(s.forceUpdate)s.forceUpdate();
-console.log('[Bot] crypto state override: '+(s.correctPassword||s.passwordOptions[0]))
-}
+// React override fallback
+if(!pwClicked&&s.password!==undefined){s.password=correctPw;if(s.forceUpdate)s.forceUpdate();console.log('[Bot] crypto override: '+correctPw)}
 }
 
 // 5. Click ALL buttons/clickables to advance
