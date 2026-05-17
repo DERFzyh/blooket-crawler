@@ -174,27 +174,22 @@ async function joinGame(pin, playerName) {
 
   await gamePage.goto('https://play.blooket.com/play', { waitUntil: 'domcontentloaded', timeout: 15000 });
   await gamePage.waitForTimeout(3000);
-  // Aggressively dismiss ALL cookie consent
-  await gamePage.evaluate(() => {
-    document.querySelectorAll('button').forEach(b => {
-      var t=b.textContent||'';
-      if(t.includes('Accept All')||t.includes('Accept')){b.click()}
-      if(t.includes('Reject All'))b.click();
-    });
-    // Also remove overlay elements
-    document.querySelectorAll('[class*="overlay"],[class*="cookie"],[class*="modal"]').forEach(e=>e.remove());
-  });
-  await gamePage.waitForTimeout(2000);
+  // Dismiss cookie consent using Playwright text selector (more reliable)
+  try { await gamePage.click('text="Accept All"', { timeout: 3000 }); await gamePage.waitForTimeout(1000); } catch(e) {}
+  try { await gamePage.click('text="Accept"', { timeout: 2000 }); await gamePage.waitForTimeout(500); } catch(e) {}
   await gamePage.locator('input[name="join-code"]').click();
   await gamePage.keyboard.type(pin, { delay: 80 });
   log('   ✅ PIN 已输入');
-  await gamePage.locator('button.FormSubmitButton_submitButton__MK2LJ').click();
+  await gamePage.locator('button[type="submit"]:not([disabled])').first().click({ timeout: 5000 });
   await gamePage.waitForTimeout(8000);
 
   try {
     // Type name into the first visible text input
     const inputs = await gamePage.$$('input');
     for (const i of inputs) { const vis = await i.isVisible(); const nameAttr = await i.getAttribute('name'); const typeAttr = await i.getAttribute('type'); if (vis && typeAttr !== 'hidden' && nameAttr !== 'join-code') { await i.click(); await gamePage.keyboard.type(name, { delay: 50 }); break; } }
+    await gamePage.keyboard.press("Enter");
+    await gamePage.waitForTimeout(2000);
+    try { await gamePage.locator("[class*=joinButton]").first().click({timeout:2000}); } catch(e) {}
     // Click join button (try multiple selectors)
     try { await gamePage.locator('[class*="joinButton"], [class*="join"]').first().click({timeout:3000}); } catch(e) {}
     await gamePage.waitForTimeout(3000);
