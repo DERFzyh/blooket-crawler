@@ -263,8 +263,8 @@ io.on('connection', socket => {
   log('🔌 面板连接');
   socket.emit('status', botStatus); socket.emit('logs', botStatus.logs);
 
-  socket.on('joinGame', async d => await joinGame(d.pin, d.name));
-  socket.on('startAutoAnswer', async () => await startAutoAnswer());
+  socket.on('joinGame', async d => { try { await joinGame(d.pin, d.name); } catch(e) { log('❌ joinGame错误: '+e.message); } });
+  socket.on('startAutoAnswer', async () => { try { await startAutoAnswer(); } catch(e) { log('❌ startAA错误: '+e.message); } });
 
   socket.on('stop', async () => {
     stopAutoAnswer();
