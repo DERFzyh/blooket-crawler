@@ -44,7 +44,7 @@ ul, ol { padding-left: 24px; }
 </head>
 <body>
 
-<h1>🎮 Blooket 爬虫 v2.3</h1>
+<h1>🎮 Blooket 爬虫 v2.6</h1>
 <p>
   <span class="badge badge-green">运行中</span>
   <span class="badge badge-blue">服务器端</span>
@@ -53,7 +53,7 @@ ul, ol { padding-left: 24px; }
 <p>
   部署在服务器的远程控制 <strong>Blooket 自动答题与游戏作弊爬虫</strong>。
   任何浏览器打开 <a href="https://blooket.derfzyh.xyz">控制面板</a> 即可操控服务器上的隐身浏览器
-  自动加入游戏、答题、作弊。
+  自动加入游戏、答题、作弊。支持 Gold Quest、Fishing Frenzy、Crypto Hack。
 </p>
 
 <h2>📋 需求</h2>
@@ -125,12 +125,18 @@ for (const el of document.querySelectorAll('*')) {
 
 <h3>自动答题流程</h3>
 <ol>
-  <li>每 400ms 遍历页面所有元素的 React fiber 树</li>
+  <li>每 600ms 遍历页面所有元素的 React fiber 树</li>
   <li>找到包含 <code>question.correctAnswers</code> 的组件状态</li>
-  <li>在 DOM 中搜索 <code>class*="answerContainer"</code> 元素</li>
-  <li>匹配 <code>textContent</code> 与正确答案</li>
-  <li>自动点击匹配的元素</li>
-  <li>在 <code>stage === 'feedback'</code> 时自动点击 Next 按钮</li>
+  <li>多策略查找答案元素（依次尝试 4 层）：
+    <ol type="a">
+      <li><code>[class*="answerContainer"]</code> — 精确文本匹配</li>
+      <li><code>[class*="answer"]</code> — 任意含 answer 类的元素</li>
+      <li>全页面任意可见元素 — 精确文本匹配</li>
+      <li><code>div/button/span</code> — 包含文本匹配</li>
+    </ol>
+  </li>
+  <li>答题后自动点击页面所有按钮/可点击元素推进游戏</li>
+  <li>答完一题后继续下一题，循环往复</li>
 </ol>
 
 <h3>游戏作弊原理</h3>
@@ -175,9 +181,9 @@ for (const el of document.querySelectorAll('*')) {
 
 <table>
   <tr><th>游戏模式</th><th>自动答题</th><th>专属作弊</th></tr>
-  <tr><td>🎣 Fishing Frenzy (钓鱼狂潮)</td><td>✅</td><td>永续Frenzy / 设置重量 / 设置鱼饵</td></tr>
-  <tr><td>💰 Gold Quest (淘金热)</td><td>✅</td><td>设置金币 / 宝箱ESP</td></tr>
-  <tr><td>🔐 Crypto Hack (加密黑客)</td><td>✅</td><td>设置加密货币 / 自动猜密码</td></tr>
+  <tr><td>🎣 Fishing Frenzy (钓鱼狂潮)</td><td>✅ 全自动</td><td>永续Frenzy / 设置重量 / 设置鱼饵</td></tr>
+  <tr><td>💰 Gold Quest (淘金热)</td><td>✅ 全自动</td><td>设置金币 / 宝箱自动选择</td></tr>
+  <tr><td>🔐 Crypto Hack (加密黑客)</td><td>✅ 全自动</td><td>设置加密货币 / 自动猜密码 / 密码选择</td></tr>
   <tr><td>🏭 Factory (工厂)</td><td>✅</td><td>—</td></tr>
   <tr><td>🏎️ Racing (竞速)</td><td>✅</td><td>—</td></tr>
   <tr><td>🛡️ Tower Defense</td><td>✅</td><td>—</td></tr>
@@ -221,6 +227,8 @@ puppeteer-extra-plugin-stealth  # 反检测插件
 
 <table>
   <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>v2.6.1</td><td>2026-05-17</td><td>修复自动答题死循环：恢复 cc41e2b 答题逻辑（无 break、精确匹配、答题后继续推进）。多策略答案元素检测（4层 fallback）。Crypto Hack 密码选择支持。加入流程增加导航等待容错。</td></tr>
+  <tr><td>v2.5</td><td>2026-05-17</td><td>Crypto Hack + Fishing Frenzy 完整自动化支持</td></tr>
   <tr><td>v2.3</td><td>2026-05-17</td><td>修复 PIN 加入流程（改用 keyboard.type 触发 React 事件）、WebSocket 代理、截图路径</td></tr>
   <tr><td>v2.1</td><td>2026-05-17</td><td>iframe 支持、多玩家加入、游戏主持功能、Cookie 自动处理</td></tr>
   <tr><td>v2.0</td><td>2026-05-17</td><td>初始版本：Playwright + Socket.IO + React fiber 遍历架构</td></tr>
