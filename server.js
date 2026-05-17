@@ -85,9 +85,10 @@ return{stage:'none',pathname:location.pathname}
 
 // ====== AUTO ANSWER JS (e3c4c81 base + intro tracking + answer dedup) ======
 // ====== AUTO ANSWER JS (fixed: no early break, always step 5) ======
+// ====== AUTO ANSWER JS (cc41e2b base + crypto + fishing) ======
 const AUTO_ANSWER_JS = `(function(){
 if(window.__aaId)clearInterval(window.__aaId);
-window.__aaLastQ='';window.__aaLastPw='';window.__aaNeedAdvance=0;
+window.__aaLastQ='';window.__aaLastPw='';
 window.__aaId=setInterval(function(){
 try{
 function wF(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s)return s}catch(e){}return wF(n.child,d+1)||wF(n.sibling,d+1)||wF(n.return,d+1)}
@@ -97,10 +98,9 @@ var s=wF(el[k[0]],0);if(!s)continue;
 var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'});
 if(!hasGame)continue;
 var qt=s.question&&(s.question.question||s.question.text);
-var weight=s.weight,lure=s.lure,isFrenzy=s.isFrenzy;
-var cr=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
+var weight=s.weight,lure=s.lure,pwOpts=s.passwordOptions;
 
-// 0. INTRO / PASSWORD SELECTION (Crypto Hack)
+// 0. Crypto Hack intro password selection
 if(s.stage==='intro'&&pwOpts&&pwOpts.length>0&&!qt){
 var pc=false;
 document.querySelectorAll('div[class*="button"]').forEach(function(c){
@@ -110,50 +110,26 @@ c.click();window.__aaLastPw=t;console.log('[Bot] picked password: '+t);pc=true;
 }});break;
 }
 
-// 1. Answer question — multi-strategy click (NO break!)
+// 1. Answer question (cc41e2b style)
 if(qt&&s.question.correctAnswers){
-var isNewQ=(qt!==window.__aaLastQ);
-if(isNewQ){
 var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
-var clicked=false;
-// Strategy 1: answerContainer class
 document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
-if(clicked)return;var t=(c.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();clicked=true;}
+var t=(c.textContent||'').trim();
+if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();console.log('[Bot] answered: '+t)}
 });
-// Strategy 2: any element with "answer" in class
-if(!clicked){document.querySelectorAll('[class*="answer"],[class*="Answer"]').forEach(function(c){
-if(clicked)return;var t=(c.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();clicked=true;}
-})}
-// Strategy 3: exact text match on any visible element
-if(!clicked){document.querySelectorAll('*').forEach(function(c){
-if(clicked)return;var t=(c.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0&&c.offsetHeight<250&&t.length<30){c.click();clicked=true;}
-})}
-// Strategy 4: partial text match on divs/buttons
-if(!clicked){document.querySelectorAll('div,button,span').forEach(function(c){
-if(clicked)return;var t=(c.textContent||'').trim();
-if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&c.offsetHeight>0&&c.offsetHeight<200){c.click();clicked=true;}
-})}
-if(clicked){window.__aaLastQ=qt;window.__aaNeedAdvance=8;console.log('[Bot] answered');}
-}
-// No break! Falls through
 }
 
 // 2. CHEST SELECTION
-// 2. CHEST SELECTION
-if(s.choices&&s.choices.length>=3){
+if(s.stage==='prize'&&s.choices&&s.choices.length>=3){
 var bestVal=-1,bestIdx=0;
 s.choices.forEach(function(c,i){
 var txt=c.text||c.question||'';
-var m=txt.match(/\+?\s*(\d+)/);var v=m?parseInt(m[1]):0;
+var m=txt.match(/\\+?\\s*(\\d+)/);var v=m?parseInt(m[1]):0;
 if(txt.indexOf('Triple')>=0)v=999;if(txt.indexOf('Double')>=0)v=666;
 if(v>bestVal){bestVal=v;bestIdx=i}
 });
-var ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="prize"],[class*="Prize"],[class*="choice"],[class*="Choice"]');
+var ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="prize"]');
 if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')')}
-else{var cnt=0;document.querySelectorAll('div').forEach(function(d){if(cnt===bestIdx&&d.offsetHeight>0&&d.offsetHeight<250){d.click();console.log('[Bot] chest fallback #'+bestIdx);cnt=-1}if(d.offsetHeight>0&&d.offsetHeight<250&&(d.textContent||'').trim().length<40)cnt++})}
 }
 
 // 3. Fishing auto-click
@@ -178,16 +154,14 @@ console.log('[Bot] crypto state override: '+(s.correctPassword||s.passwordOption
 }
 }
 
-// 5. Click ALL buttons/clickables to advance (ALWAYS runs!)
-if(window.__aaNeedAdvance>0)window.__aaNeedAdvance--;
+// 5. Click ALL buttons/clickables to advance
 document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0)c.click()});
 document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0)c.click()});
-document.querySelectorAll('div[class*="_button_"],div[class*="-button-"]').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<120)c.click()});
-document.querySelectorAll('div,span,button').forEach(function(c){if(!c.offsetHeight||c.offsetHeight>150)return;var t=(c.textContent||'').trim().toLowerCase();if(t==='go'||t==='go!'||t==='next'||t==='continue'||t==='play'||t==='ready'||t==='ok'){c.click();console.log('[Bot] advance click: '+t)}});
 break;
 }
 }catch(e){}
 },600)})()`;
+
 
 
 // Wait until URL changes from current (handles slow network)
