@@ -220,8 +220,9 @@ function startMonitor() {
         if (state.questionText) {
           botStatus.mode = 'playing';
           var parts = ['📝 题目: '+state.questionText, '✅ '+(state.correctAnswers||[]).join(','), '💰 '+(state.gold||0)];
-          if (state.weight!==undefined) parts.push('🐟 重量:'+state.weight+' 狂:'+(state.isFrenzy?'是':'否'));
-          if (state.crypto!==undefined) parts.push('🔐 加密币:'+state.crypto+(state.correctPassword?' 正确密码:'+state.correctPassword:''));
+          if (state.pathname?.includes('fishing')) { parts.push('🐟 重量:'+state.weight+' 狂:'+(state.isFrenzy?'是':'否')); botStatus.gameMode = 'fishing'; }
+          else if (state.pathname?.includes('gold')) { botStatus.gameMode = 'gold'; }
+          else if (state.pathname?.includes('hack')) { parts.push('🔐 加密币:'+state.crypto+(state.correctPassword?' 正确密码:'+state.correctPassword:'')); botStatus.gameMode = 'crypto'; }
           log(parts.join(' | '));
           if (state.pathname?.includes('fishing')) botStatus.gameMode = 'fishing';
           else if (state.pathname?.includes('gold')) botStatus.gameMode = 'gold';
