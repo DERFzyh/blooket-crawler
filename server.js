@@ -102,12 +102,12 @@ if(clicked)return;
 var t=(c.textContent||'').trim();
 if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();clicked=true;console.log('[Bot] answered: '+t)}
 });
-// Fallback: click any visible div with matching text
+// Fallback: click any visible element with matching text
 if(!clicked){
-document.querySelectorAll('div').forEach(function(d){
+document.querySelectorAll('*').forEach(function(d){
 if(clicked)return;
 var t=(d.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&d.offsetHeight>0&&d.offsetHeight<200){d.click();clicked=true;console.log('[Bot] fallback-clicked: '+t)}
+if(ca.some(function(a){return(a||'').toString().trim()===t})&&d.offsetHeight>0&&d.offsetHeight<200&&t.length<50){d.click();clicked=true;console.log('[Bot] fallback-clicked: '+t)}
 });
 }
 }
