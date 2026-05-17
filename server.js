@@ -83,137 +83,52 @@ if(s.stage)return{stage:s.stage,gold:s.gold,weight:s.weight,crypto:s.crypto,path
 return{stage:'none',pathname:location.pathname}
 })()`;
 
-// ====== AUTO ANSWER JS (updated for modern Blooket) ======
+// ====== AUTO ANSWER JS (e3c4c81 base + intro tracking + answer dedup) ======
 const AUTO_ANSWER_JS = `(function(){
 if(window.__aaId)clearInterval(window.__aaId);
-window.__aaLastQ='';window.__aaLastPw='';window.__aaQDelay=0;
+window.__aaLastQ='';window.__aaLastPw='';
 window.__aaId=setInterval(function(){
 try{
 function wF(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s)return s}catch(e){}return wF(n.child,d+1)||wF(n.sibling,d+1)||wF(n.return,d+1)}
 for(var el of document.querySelectorAll('*')){
 var k=Object.keys(el).filter(function(x){return x.indexOf('__react')===0});if(!k.length)continue;
 var s=wF(el[k[0]],0);if(!s)continue;
-var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'||k==='passwordOptions'});
+var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'});
 if(!hasGame)continue;
 var qt=s.question&&(s.question.question||s.question.text);
 var weight=s.weight,lure=s.lure,isFrenzy=s.isFrenzy;
 var cr=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
-var stage=s.stage;
 
 // 0. INTRO / PASSWORD SELECTION (Crypto Hack new user)
-if(stage==='intro'&&pwOpts&&pwOpts.length>0&&!qt){
-  // Click the first visible password button
-  var pwClicked=false;
-  document.querySelectorAll('div[class*="button"]').forEach(function(c){
-    if(pwClicked)return;
-    var t=(c.textContent||'').trim();
-    if(t.length>2&&t.length<40&&c.offsetHeight>0&&c.offsetHeight<100&&!window.__aaLastPw){
-      c.click();window.__aaLastPw=t;
-      console.log('[Bot] picked password: '+t);pwClicked=true;
-    }
-  });
-  break;
-}
+if(s.stage==='intro'&&pwOpts&&pwOpts.length>0&&!qt){\nvar pc=false;\ndocument.querySelectorAll('div[class*="button"]').forEach(function(c){\nif(pc)return;var t=(c.textContent||'').trim();\nif(t.length>2&&t.length<40&&c.offsetHeight>0&&c.offsetHeight<100&&!window.__aaLastPw){\nc.click();window.__aaLastPw=t;console.log('[Bot] picked password: '+t);pc=true;\n}\n});\nbreak;\n}\n\n// 1. Answer question (e3c4c81 exact match)\nif(qt&&s.question.correctAnswers){\n// Skip if same question already answered\nif(qt===window.__aaLastQ){break}\nvar ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];\ndocument.querySelectorAll('[class*="answerContainer"]').forEach(function(c){\nvar t=(c.textContent||'').trim();\nif(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();window.__aaLastQ=qt;console.log('[Bot] answered: '+t)}\n});\n// No break! Falls through to step 5\n}\n\n// 2. CHEST SELECTION - pick best\nif(s.stage==='prize'&&s.choices&&s.choices.length>=3){\nvar bestVal=-1,bestIdx=0;\ns.choices.forEach(function(c,i){\nvar txt=c.text||c.question||'';\nvar m=txt.match(/\\+?\\s*(\\d+)/);var v=m?parseInt(m[1]):0;\nif(txt.indexOf('Triple')>=0)v=999;if(txt.indexOf('Double')>=0)v=666;\nif(v>bestVal){bestVal=v;bestIdx=i}\n});\nvar ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="prize"]');\nif(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')')}\n}\n\n// 3. Fishing auto-click (cast/fish/reel during fishing phase)\nif((weight!==undefined||lure!==undefined)&&!qt){\ndocument.querySelectorAll('[class*="cast"],[class*="Cast"],[class*="fish"],[class*="Fish"],[class*="reel"],[class*="Reel"]').forEach(function(c){\nif(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}\n});\n}\n\n// 4. Crypto password guessing\nif(pwOpts&&pwOpts.length>0&&!qt){\nvar correctPw=s.correctPassword||(pwOpts[0]||'').toString().trim();\nvar clicked=false;\ndocument.querySelectorAll('[class*="button"],[role=button]').forEach(function(c){\nvar t=(c.textContent||'').trim();\nif(!clicked&&correctPw&&t===correctPw&&c.offsetHeight>0){c.click();console.log('[Bot] crypto guessed: '+t);clicked=true}\n});\nif(!clicked&&s&&s.password!==undefined&&s.passwordOptions){\ns.password=s.correctPassword||s.passwordOptions[0];\nif(s.forceUpdate)s.forceUpdate();\nconsole.log('[Bot] crypto state override: '+(s.correctPassword||s.passwordOptions[0]))\n}\n}\n\n// 5. Click ALL buttons/clickables to advance\ndocument.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0)c.click()});\ndocument.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0)c.click()});\nbreak;\n}\n}catch(e){}\n},600)})()`;
 
-// 1. Answer question (only if new question)
-if(qt&&s.question.correctAnswers){
-var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
-// Skip if same question already answered
-if(qt===window.__aaLastQ&&window.__aaQDelay>0){window.__aaQDelay--;break}
-if(qt===window.__aaLastQ){break}
-
-var clicked=false;
-// Primary: click answerContainer elements
-var acEls=document.querySelectorAll('[class*="answerContainer"]');
-for(var ai=0;ai<acEls.length&&!clicked;ai++){
-  var c=acEls[ai];
-  var t=(c.textContent||'').trim();
-  if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0||at.indexOf(t)>=0})&&c.offsetHeight>0){
-    c.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;
-    console.log('[Bot] answered: '+t);
+// Wait until URL changes from current (handles slow network)
+async function waitForNav(page, timeoutMs = 15000) {
+  const startUrl = page.url();
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      if (page.isClosed()) return false;
+      if (page.url() !== startUrl) return true;
+    } catch(e) { return false; }
   }
-}
-// Secondary: click answerText parent
-if(!clicked){
-  document.querySelectorAll('[class*="answerTextContainer"],[class*="answerContainer"]').forEach(function(c){
-    if(clicked)return;
-    var t=(c.textContent||'').trim();
-    if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&c.offsetHeight>0){
-      c.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;
-      console.log('[Bot] text-clicked: '+t);
-    }
-  });
-}
-// Fallback: find exact text match in visible elements
-if(!clicked){
-  document.querySelectorAll('*').forEach(function(d){
-    if(clicked)return;
-    var t=(d.textContent||'').trim();
-    if(ca.some(function(a){var at=(a||'').toString().trim();return t===at||t.indexOf(at)>=0})&&d.offsetHeight>0&&d.offsetHeight<300&&t.length<100){
-      d.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;
-      console.log('[Bot] fallback: '+t.substring(0,40));
-    }
-  });
-}
-break;
+  return false;
 }
 
-// 2. CHEST SELECTION - pick best
-if(stage==='prize'&&s.choices&&s.choices.length>=3){
-var bestVal=-1,bestIdx=0;
-s.choices.forEach(function(c,i){
-var txt=c.text||c.question||'';
-var m=txt.match(/\\+?\\s*(\\d+)/);var v=m?parseInt(m[1]):0;
-if(txt.indexOf('Triple')>=0)v=999;if(txt.indexOf('Double')>=0)v=666;
-if(v>bestVal){bestVal=v;bestIdx=i}
-});
-var ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="prize"]');
-if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')');break}
+// Wait for an element to be visible with retries
+async function waitForVisible(page, selector, timeoutMs = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      if (page.isClosed()) return null;
+      const el = page.locator(selector).first();
+      if (await el.isVisible({ timeout: 500 }).catch(() => false)) return el;
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return null;
 }
-
-// 3. Fishing auto-click (cast/fish/reel during fishing phase)
-if((weight!==undefined||lure!==undefined)&&!qt){
-document.querySelectorAll('[class*="fishingRod"],[class*="_fishingRod"],[class*="pageButton"],[class*="_pageButton"],[class*="cast"],[class*="reel"]').forEach(function(c){
-if(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}
-});
-break;
-}
-
-// 4. Crypto password guessing — click visible password option buttons
-if(pwOpts&&pwOpts.length>0&&!qt&&stage!=='intro'){
-var correctPw=s.correctPassword||pwOpts[0];
-var pwClicked=false;
-document.querySelectorAll('div[class*="button"]').forEach(function(c){
-if(pwClicked)return;
-var t=(c.textContent||'').trim();
-if(correctPw&&t===correctPw&&c.offsetHeight>0&&c.offsetHeight<100){c.click();pwClicked=true;console.log('[Bot] crypto guessed: '+t)}
-});
-// Try clicking any password-looking button
-if(!pwClicked){
-  document.querySelectorAll('div[class*="button"]').forEach(function(c){
-    if(pwClicked)return;
-    var t=(c.textContent||'').trim();
-    if(t===pwOpts[0]&&c.offsetHeight>0&&c.offsetHeight<100){c.click();pwClicked=true;console.log('[Bot] crypto pick: '+t)}
-  });
-}
-break;
-}
-
-// 5. Click advancement buttons (after answering, transitions, etc.)
-// Only click if we're not on an active question we haven't answered
-if(!qt||qt===window.__aaLastQ){
-  document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<200)c.click()});
-  document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<200)c.click()});
-  // Also click divs with button class (CSS modules)
-  document.querySelectorAll('div[class*="_button_"],div[class*="-button-"]').forEach(function(c){
-    var t=(c.textContent||'').trim().toLowerCase();
-    if(c.offsetHeight>0&&c.offsetHeight<120&&(t==='next'||t==='continue'||t==='ok'||t==='ready'||t==='got it'||t===''))c.click();
-  });
-}
-break;
-}
-}catch(e){}
-},600)})()`;
 
 // ====== Core Actions ======
 async function joinGame(pin, playerName) {
@@ -230,57 +145,85 @@ async function joinGame(pin, playerName) {
   const name = (playerName || 'Bot') + Math.floor(Math.random() * 9000 + 1000);
   log(`🏃 加入 PIN:${pin} (${name})`);
 
+  // Step 1: Load play page
   await gamePage.goto('https://play.blooket.com/play', { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await gamePage.waitForTimeout(2000);
-  // Dismiss cookie consent with aggressive evaluate + wait
-  await gamePage.evaluate(() => {
-    var btns=document.querySelectorAll('button');
-    for(var i=0;i<btns.length;i++){var t=btns[i].textContent||'';if(t.includes('Accept')||t.includes('Reject'))btns[i].click()}
-  });
-  await gamePage.waitForTimeout(2000);
-  // Try again with Playwright click as fallback
-  try { await gamePage.click('button:has-text("Accept")', { timeout: 3000 }); await gamePage.waitForTimeout(1000); } catch(e) {}
-  await gamePage.locator('input[name="join-code"]').click();
-  await gamePage.keyboard.type(pin, { delay: 80 });
-  log('   ✅ PIN 已输入');
-  await gamePage.locator('button[type="submit"]:not([disabled])').first().click({ timeout: 5000 });
-  await gamePage.waitForTimeout(8000);
+  await gamePage.waitForTimeout(1000);
+  log(`   📄 页面已加载: ${gamePage.url()}`);
 
+  // Dismiss cookie consent
   try {
-    // Type name into the first visible text input (handles both play.blooket.com and cryptohack.blooket.com)
-    const inputs = await gamePage.$$('input');
-    for (const i of inputs) { 
-      const vis = await i.isVisible(); 
-      const typeAttr = await i.getAttribute('type'); 
-      const placeholder = await i.getAttribute('placeholder') || '';
-      if (vis && typeAttr !== 'hidden' && typeAttr !== 'password' && 
-          (placeholder.includes('name')||placeholder.includes('Name')||placeholder.includes('Nickname')||placeholder===''||!placeholder)) { 
-        await i.click(); await i.fill(''); await gamePage.keyboard.type(name, { delay: 50 }); break; 
-      } 
-    }
-    // Try click join/register button
-    let btnClicked = false;
-    for (const sel of ['[class*=joinButton]','[class*=playButton]','[class*=registerButton]','button','[role=button]']) {
+    await gamePage.evaluate(() => { document.querySelectorAll('button').forEach(b => { var t = b.textContent || ''; if (t.includes('Accept') || t.includes('Reject')) b.click(); }); });
+    await gamePage.waitForTimeout(1500);
+    try { await gamePage.click('button:has-text("Accept")', { timeout: 2000 }); } catch(e) {}
+    log('   🍪 Cookie 已处理');
+  } catch(e) { log(`   ℹ️ Cookie 跳过: ${e.message}`); }
+
+  // Step 2: Enter PIN and submit, then WAIT for navigation
+  log('   ⌨️ 输入 PIN...');
+  try {
+    const pinInput = await waitForVisible(gamePage, 'input[name="join-code"]');
+    if (!pinInput) throw new Error('PIN输入框未找到');
+    await pinInput.click();
+    await gamePage.keyboard.type(pin, { delay: 80 });
+    
+    let submitted = false;
+    await gamePage.keyboard.press('Enter');
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const submitBtn = await waitForVisible(gamePage, 'button[type="submit"]:not([disabled])', 5000);
+      if (submitBtn) { await submitBtn.click(); submitted = true; log('   ✅ PIN 已提交 (click)'); }
+    } catch(e) {}
+    if (!submitted) log('   ✅ PIN 已提交 (Enter)');
+    
+    // Wait for URL to change (navigate to name/register page)
+    const urlBefore = gamePage.url();
+    log(`   ⏳ 等待跳转... (当前: ${urlBefore})`);
+    const navOk = await waitForNav(gamePage, 15000);
+    if (navOk) { log(`   ✅ 已跳转: ${gamePage.url()}`); }
+    else { log(`   ⚠️ 未跳转，当前: ${gamePage.url()}`); }
+    await gamePage.waitForTimeout(2000);
+  } catch(e) { log(`   ❌ PIN提交失败: ${e.message}`); }
+
+  // Step 3: Enter name (if prompted), then WAIT for navigation
+  try {
+    const nameEl = await waitForVisible(gamePage, 'input:not([type="hidden"]):not([name="join-code"])', 10000);
+    if (nameEl) {
+      log('   ⌨️ 填写名字...');
       try {
-        const btns = await gamePage.$$(sel);
-        for (const btn of btns) {
-          const txt = ((await btn.textContent()) || '').trim().toLowerCase();
-          if (txt.includes('join')||txt.includes('play')||txt.includes('enter')||txt.includes('register')||txt.includes('pay')) {
-            if (await btn.isVisible()) { await btn.click(); btnClicked = true; break; }
-          }
+        await nameEl.click();
+        await nameEl.fill('');
+        await gamePage.keyboard.type(name, { delay: 50 });
+        await gamePage.keyboard.press('Enter');
+        await new Promise(r => setTimeout(r, 2000));
+        
+        const nameNavOk = await waitForNav(gamePage, 15000);
+        if (nameNavOk) {
+          log(`   ✅ 名字已提交: ${gamePage.url()}`);
+        } else {
+          log('   ⚠️ 未跳转，尝试点击加入按钮...');
+          try {
+            for (const sel of ['[class*=joinButton]', '[class*=playButton]', '[class*=registerButton]', 'button', '[role=button]']) {
+              const btns = await gamePage.$$(sel);
+              for (const btn of btns) {
+                const txt = ((await btn.textContent()) || '').trim().toLowerCase();
+                if ((txt.includes('join') || txt.includes('play') || txt.includes('enter') || txt.includes('register') || txt.includes('pay')) && await btn.isVisible()) {
+                  await btn.click();
+                  await waitForNav(gamePage, 10000);
+                  log(`   ✅ 加入按钮已点击: ${gamePage.url()}`);
+                  break;
+                }
+              }
+            }
+          } catch(e) {}
         }
-      } catch(e) {}
-      if (btnClicked) break;
+      } catch(e) { log(`   ⚠️ 名字输入异常: ${e.message}`); }
+    } else {
+      log('   ℹ️ 无需输入名字（可能直接加入）');
     }
-    await gamePage.waitForTimeout(1000);
-    await gamePage.keyboard.press("Enter");
-    await gamePage.waitForTimeout(5000);
-    log(`   ✅ 名字已提交: ${gamePage.url()}`);
-  } catch (e) { log('   ℹ️ 跳过名字: '+e.message); }
+  } catch(e) { log(`   ℹ️ 名字步骤跳过: ${e.message}`); }
 
   log(`✅ 已加入: ${gamePage.url()}`);
   startMonitor(); 
-  // Auto-start auto-answer after joining
   setTimeout(async () => { if (gamePage && !gamePage.isClosed()) await startAutoAnswer(); }, 2000);
   io.emit('status', botStatus);
   return true;
