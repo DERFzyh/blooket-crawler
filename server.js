@@ -196,6 +196,10 @@ async function joinGame(pin, playerName) {
     await gamePage.keyboard.press("Enter");
     await gamePage.waitForTimeout(2000);
     try { await gamePage.locator("[class*=joinButton]").first().click({timeout:2000}); } catch(e) {}
+    await gamePage.waitForTimeout(2000);
+    await gamePage.keyboard.press("Enter");
+    await gamePage.waitForTimeout(2000);
+    try { await gamePage.locator("[class*=joinButton]").first().click({timeout:2000}); } catch(e) {}
     // Click join button (try multiple selectors)
     try { await gamePage.locator('[class*="joinButton"], [class*="join"]').first().click({timeout:3000}); } catch(e) {}
     await gamePage.waitForTimeout(3000);
