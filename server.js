@@ -205,7 +205,10 @@ async function joinGame(pin, playerName) {
   } catch (e) { log('   ℹ️ 跳过名字'); }
 
   log(`✅ 已加入: ${gamePage.url()}`);
-  startMonitor(); io.emit('status', botStatus);
+  startMonitor(); 
+  // Auto-start auto-answer after joining
+  setTimeout(async () => { if (gamePage && !gamePage.isClosed()) await startAutoAnswer(); }, 2000);
+  io.emit('status', botStatus);
   return true;
 }
 

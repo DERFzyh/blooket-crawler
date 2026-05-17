@@ -95,10 +95,9 @@ button:hover { opacity: 0.9; }
     <button class="btn-success" onclick="doJoin()">🏃 加入游戏</button>
   </div>
 
-  <!-- 自动答题 -->
+  <!-- 自动答题 (默认开启) -->
   <div class="card">
-    <h3>🤖 自动答题</h3>
-    <button class="btn-success" onclick="doAutoAnswer()">▶ 启动自动答题</button>
+    <h3>🤖 自动答题 <span style="color:#5d5;font-size:0.8em;">(加入后自动启动)</span></h3>
     <button class="btn-danger" onclick="doStop()">⏹ 停止</button>
     <div id="autoAnswerStatus" style="font-size:0.75em;margin-top:4px;"></div>
   </div>
