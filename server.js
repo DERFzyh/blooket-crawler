@@ -100,14 +100,14 @@ var clicked=false;
 document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
 if(clicked)return;
 var t=(c.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();clicked=true;console.log('[Bot] answered: '+t)}
+if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&c.offsetHeight>0){c.click();clicked=true;console.log('[Bot] answered: '+t)}
 });
 // Fallback: click any visible element with matching text
 if(!clicked){
 document.querySelectorAll('*').forEach(function(d){
 if(clicked)return;
 var t=(d.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&d.offsetHeight>0&&d.offsetHeight<200&&t.length<50){d.click();clicked=true;console.log('[Bot] fallback-clicked: '+t)}
+if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&d.offsetHeight>0&&d.offsetHeight<200&&t.length<50){d.click();clicked=true;console.log('[Bot] fallback-clicked: '+t)}
 });
 }
 }
