@@ -14,36 +14,66 @@ chromium.use(StealthPlugin());
   await p.waitForTimeout(10000);
   console.log('URL:',p.url());
 
-  // Inject FULL auto-answer with chest selection
+  // Inject FULL auto-answer (updated for modern Blooket + Crypto Hack)
   await p.evaluate(()=>{(function(){
     if(window.__aaId)clearInterval(window.__aaId);
+    window.__aaLastQ='';window.__aaLastPw='';window.__aaQDelay=0;
     window.__aaId=setInterval(function(){
       try{
         function wF(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s)return s}catch(e){}return wF(n.child,d+1)||wF(n.sibling,d+1)||wF(n.return,d+1)}
         for(var el of document.querySelectorAll('*')){
           var k=Object.keys(el).filter(x=>x.indexOf('__react')===0);if(!k.length)continue;
           var s=wF(el[k[0]],0);if(!s)continue;
-          var hasGame=Object.keys(s).some(k=>k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword');
+          var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'||k==='passwordOptions'});
           if(!hasGame)continue;
           var qt=s.question&&(s.question.question||s.question.text);
           var stage=s.stage;
           var weight=s.weight,lure=s.lure,isFrenzy=s.isFrenzy;
           var crval=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
 
-          // 1. Answer question
+          // 0. INTRO / PASSWORD SELECTION (Crypto Hack new user)
+          if(stage==='intro'&&pwOpts&&pwOpts.length>0&&!qt){
+            var pwClicked=false;
+            document.querySelectorAll('div[class*="button"]').forEach(function(c){
+              if(pwClicked)return;
+              var t=(c.textContent||'').trim();
+              if(t.length>2&&t.length<40&&c.offsetHeight>0&&c.offsetHeight<100&&!window.__aaLastPw){
+                c.click();window.__aaLastPw=t;console.log('[Bot] picked password: '+t);pwClicked=true;
+              }
+            });
+            break;
+          }
+
+          // 1. Answer question (track to avoid re-clicking)
           if(qt&&s.question.correctAnswers){
             var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
-            document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
-              var t=(c.textContent||'').trim();
-              if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0)c.click();clicked=true;;
-            });
-              if(!clicked){
-                document.querySelectorAll('div').forEach(function(d){
-                  if(clicked)return;
-                  var t=(d.textContent||'').trim();
-                  if(ca.some(function(a){return(a||'').toString().trim()===t})&&d.offsetHeight>0&&d.offsetHeight<200){d.click();clicked=true;}
-                });
+            if(qt===window.__aaLastQ&&window.__aaQDelay>0){window.__aaQDelay--;break}
+            if(qt===window.__aaLastQ){break}
+            var clicked=false;
+            var acEls=document.querySelectorAll('[class*="answerContainer"]');
+            for(var ai=0;ai<acEls.length&&!clicked;ai++){
+              var c=acEls[ai];var t=(c.textContent||'').trim();
+              if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0||at.indexOf(t)>=0})&&c.offsetHeight>0){
+                c.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;console.log('[Bot] answered: '+t);
               }
+            }
+            if(!clicked){
+              document.querySelectorAll('[class*="answerTextContainer"],[class*="answerContainer"]').forEach(function(c){
+                if(clicked)return;var t=(c.textContent||'').trim();
+                if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&c.offsetHeight>0){
+                  c.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;console.log('[Bot] text-clicked: '+t);
+                }
+              });
+            }
+            if(!clicked){
+              document.querySelectorAll('*').forEach(function(d){
+                if(clicked)return;var t=(d.textContent||'').trim();
+                if(ca.some(function(a){var at=(a||'').toString().trim();return t===at||t.indexOf(at)>=0})&&d.offsetHeight>0&&d.offsetHeight<300&&t.length<100){
+                  d.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;console.log('[Bot] fallback: '+t.substring(0,40));
+                }
+              });
+            }
+            break;
           }
 
           // 2. CHEST SELECTION - pick best
@@ -56,39 +86,49 @@ chromium.use(StealthPlugin());
               if(v>bestVal){bestVal=v;bestIdx=i}
             });
             var ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="prize"]');
-            if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0)ce[bestIdx].click();
+            if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')');break}
           }
 
-          // 3. Fishing auto-click (cast/fish/reel during fishing phase)
+          // 3. Fishing auto-click
           if((weight!==undefined||lure!==undefined)&&!qt){
             document.querySelectorAll('[class*="fishingRod"],[class*="_fishingRod"],[class*="pageButton"],[class*="_pageButton"],[class*="cast"],[class*="reel"]').forEach(function(c){
-              if(c.offsetHeight>0)c.click();
+              if(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}
             });
+            break;
           }
 
-          // 4. Crypto password guessing
-          if(pwOpts&&pwOpts.length>0&&!qt){
-            var correctPw=s.correctPassword||(pwOpts[0]||'').toString().trim();
-            var clicked=false;
-            document.querySelectorAll('[class*="button"],[role=button]').forEach(function(c){
-              var t=(c.textContent||'').trim();
-              if(!clicked&&correctPw&&t===correctPw&&c.offsetHeight>0){c.click();clicked=true;}
+          // 4. Crypto password guessing (click visible password buttons)
+          if(pwOpts&&pwOpts.length>0&&!qt&&stage!=='intro'){
+            var correctPw=s.correctPassword||pwOpts[0];
+            var pwClicked2=false;
+            document.querySelectorAll('div[class*="button"]').forEach(function(c){
+              if(pwClicked2)return;var t=(c.textContent||'').trim();
+              if(correctPw&&t===correctPw&&c.offsetHeight>0&&c.offsetHeight<100){c.click();pwClicked2=true;console.log('[Bot] crypto guessed: '+t)}
             });
-            if(!clicked&&s&&s.password!==undefined&&s.passwordOptions){
-              s.password=s.correctPassword||s.passwordOptions[0];
-              if(s.forceUpdate)s.forceUpdate();
+            if(!pwClicked2){
+              document.querySelectorAll('div[class*="button"]').forEach(function(c){
+                if(pwClicked2)return;var t=(c.textContent||'').trim();
+                if(t===pwOpts[0]&&c.offsetHeight>0&&c.offsetHeight<100){c.click();pwClicked2=true;console.log('[Bot] crypto pick: '+t)}
+              });
             }
+            break;
           }
 
-          // 5. Click ALL buttons/clickables to advance
-          document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0)c.click()});
-          document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0)c.click()});
+          // 5. Click advancement buttons
+          if(!qt||qt===window.__aaLastQ){
+            document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<200)c.click()});
+            document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<200)c.click()});
+            document.querySelectorAll('div[class*="_button_"],div[class*="-button-"]').forEach(function(c){
+              var t=(c.textContent||'').trim().toLowerCase();
+              if(c.offsetHeight>0&&c.offsetHeight<120&&(t=='next'||t=='continue'||t=='ok'||t=='ready'||t=='got it'||t==''))c.click();
+            });
+          }
           break;
         }
       }catch(e){}
     },600);
   })()});
-  console.log('AA v6 injected (Gold Quest + Fishing + Crypto)');
+  console.log('AA v7 injected (Crypto Hack intro + answer tracking + advance clicks)');
 
   // Monitor 40s
   let lastGold=undefined;

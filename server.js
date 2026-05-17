@@ -72,48 +72,94 @@ if(s.password!==undefined&&s.passwordOptions&&s.passwordOptions.length>0){
 return{stage:s.stage||'guessing',crypto:s.crypto,password:s.password,passwordOptions:s.passwordOptions,correctPassword:s.correctPassword,gold:s.gold,pathname:location.pathname}
 }
 
+// Intro / password selection (Crypto Hack new user)
+if(s.stage==='intro'&&s.passwordOptions&&s.passwordOptions.length>0){
+return{stage:'intro',passwordOptions:s.passwordOptions,gold:s.gold,crypto:s.crypto,pathname:location.pathname}
+}
+
 // Any game state
 if(s.stage)return{stage:s.stage,gold:s.gold,weight:s.weight,crypto:s.crypto,pathname:location.pathname}
 }
 return{stage:'none',pathname:location.pathname}
 })()`;
 
-// ====== AUTO ANSWER JS (identical to run5.js logic) ======
+// ====== AUTO ANSWER JS (updated for modern Blooket) ======
 const AUTO_ANSWER_JS = `(function(){
 if(window.__aaId)clearInterval(window.__aaId);
+window.__aaLastQ='';window.__aaLastPw='';window.__aaQDelay=0;
 window.__aaId=setInterval(function(){
 try{
 function wF(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s)return s}catch(e){}return wF(n.child,d+1)||wF(n.sibling,d+1)||wF(n.return,d+1)}
 for(var el of document.querySelectorAll('*')){
 var k=Object.keys(el).filter(function(x){return x.indexOf('__react')===0});if(!k.length)continue;
 var s=wF(el[k[0]],0);if(!s)continue;
-var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'});
+var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'||k==='passwordOptions'});
 if(!hasGame)continue;
 var qt=s.question&&(s.question.question||s.question.text);
 var weight=s.weight,lure=s.lure,isFrenzy=s.isFrenzy;
 var cr=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
+var stage=s.stage;
 
-// 1. Answer question
+// 0. INTRO / PASSWORD SELECTION (Crypto Hack new user)
+if(stage==='intro'&&pwOpts&&pwOpts.length>0&&!qt){
+  // Click the first visible password button
+  var pwClicked=false;
+  document.querySelectorAll('div[class*="button"]').forEach(function(c){
+    if(pwClicked)return;
+    var t=(c.textContent||'').trim();
+    if(t.length>2&&t.length<40&&c.offsetHeight>0&&c.offsetHeight<100&&!window.__aaLastPw){
+      c.click();window.__aaLastPw=t;
+      console.log('[Bot] picked password: '+t);pwClicked=true;
+    }
+  });
+  break;
+}
+
+// 1. Answer question (only if new question)
 if(qt&&s.question.correctAnswers){
 var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
+// Skip if same question already answered
+if(qt===window.__aaLastQ&&window.__aaQDelay>0){window.__aaQDelay--;break}
+if(qt===window.__aaLastQ){break}
+
 var clicked=false;
-document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
-if(clicked)return;
-var t=(c.textContent||'').trim();
-if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&c.offsetHeight>0){c.click();clicked=true;console.log('[Bot] answered: '+t)}
-});
-// Fallback: click any visible element with matching text
-if(!clicked){
-document.querySelectorAll('*').forEach(function(d){
-if(clicked)return;
-var t=(d.textContent||'').trim();
-if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&d.offsetHeight>0&&d.offsetHeight<200&&t.length<50){d.click();clicked=true;console.log('[Bot] fallback-clicked: '+t)}
-});
+// Primary: click answerContainer elements
+var acEls=document.querySelectorAll('[class*="answerContainer"]');
+for(var ai=0;ai<acEls.length&&!clicked;ai++){
+  var c=acEls[ai];
+  var t=(c.textContent||'').trim();
+  if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0||at.indexOf(t)>=0})&&c.offsetHeight>0){
+    c.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;
+    console.log('[Bot] answered: '+t);
+  }
 }
+// Secondary: click answerText parent
+if(!clicked){
+  document.querySelectorAll('[class*="answerTextContainer"],[class*="answerContainer"]').forEach(function(c){
+    if(clicked)return;
+    var t=(c.textContent||'').trim();
+    if(ca.some(function(a){var at=(a||'').toString().trim();return t.indexOf(at)>=0})&&c.offsetHeight>0){
+      c.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;
+      console.log('[Bot] text-clicked: '+t);
+    }
+  });
+}
+// Fallback: find exact text match in visible elements
+if(!clicked){
+  document.querySelectorAll('*').forEach(function(d){
+    if(clicked)return;
+    var t=(d.textContent||'').trim();
+    if(ca.some(function(a){var at=(a||'').toString().trim();return t===at||t.indexOf(at)>=0})&&d.offsetHeight>0&&d.offsetHeight<300&&t.length<100){
+      d.click();clicked=true;window.__aaLastQ=qt;window.__aaQDelay=3;
+      console.log('[Bot] fallback: '+t.substring(0,40));
+    }
+  });
+}
+break;
 }
 
 // 2. CHEST SELECTION - pick best
-if(s.stage==='prize'&&s.choices&&s.choices.length>=3){
+if(stage==='prize'&&s.choices&&s.choices.length>=3){
 var bestVal=-1,bestIdx=0;
 s.choices.forEach(function(c,i){
 var txt=c.text||c.question||'';
@@ -122,7 +168,7 @@ if(txt.indexOf('Triple')>=0)v=999;if(txt.indexOf('Double')>=0)v=666;
 if(v>bestVal){bestVal=v;bestIdx=i}
 });
 var ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="prize"]');
-if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')')}
+if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')');break}
 }
 
 // 3. Fishing auto-click (cast/fish/reel during fishing phase)
@@ -130,29 +176,40 @@ if((weight!==undefined||lure!==undefined)&&!qt){
 document.querySelectorAll('[class*="fishingRod"],[class*="_fishingRod"],[class*="pageButton"],[class*="_pageButton"],[class*="cast"],[class*="reel"]').forEach(function(c){
 if(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}
 });
+break;
 }
 
-// 4. Crypto password guessing — try ALL options
-if(pwOpts&&pwOpts.length>0&&!qt){
-// Cycle through password options: if current password matches one, try next
-var curPw=s.password||'';
-var tryIdx=0;
-for(var pi=0;pi<pwOpts.length;pi++){if(curPw===pwOpts[pi]){tryIdx=(pi+1)%pwOpts.length;break}}
-var correctPw=s.correctPassword||pwOpts[tryIdx];
-// Click element matching the password
+// 4. Crypto password guessing — click visible password option buttons
+if(pwOpts&&pwOpts.length>0&&!qt&&stage!=='intro'){
+var correctPw=s.correctPassword||pwOpts[0];
 var pwClicked=false;
-document.querySelectorAll('[class*="button"],[role=button]').forEach(function(c){
+document.querySelectorAll('div[class*="button"]').forEach(function(c){
 if(pwClicked)return;
 var t=(c.textContent||'').trim();
-if(correctPw&&t===correctPw&&c.offsetHeight>0){c.click();pwClicked=true;console.log('[Bot] crypto guessed: '+t)}
+if(correctPw&&t===correctPw&&c.offsetHeight>0&&c.offsetHeight<100){c.click();pwClicked=true;console.log('[Bot] crypto guessed: '+t)}
 });
-// React override fallback
-if(!pwClicked&&s.password!==undefined){s.password=correctPw;if(s.forceUpdate)s.forceUpdate();console.log('[Bot] crypto override: '+correctPw)}
+// Try clicking any password-looking button
+if(!pwClicked){
+  document.querySelectorAll('div[class*="button"]').forEach(function(c){
+    if(pwClicked)return;
+    var t=(c.textContent||'').trim();
+    if(t===pwOpts[0]&&c.offsetHeight>0&&c.offsetHeight<100){c.click();pwClicked=true;console.log('[Bot] crypto pick: '+t)}
+  });
+}
+break;
 }
 
-// 5. Click ALL buttons/clickables to advance
-document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0)c.click()});
-document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0)c.click()});
+// 5. Click advancement buttons (after answering, transitions, etc.)
+// Only click if we're not on an active question we haven't answered
+if(!qt||qt===window.__aaLastQ){
+  document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<200)c.click()});
+  document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0&&c.offsetHeight<200)c.click()});
+  // Also click divs with button class (CSS modules)
+  document.querySelectorAll('div[class*="_button_"],div[class*="-button-"]').forEach(function(c){
+    var t=(c.textContent||'').trim().toLowerCase();
+    if(c.offsetHeight>0&&c.offsetHeight<120&&(t==='next'||t==='continue'||t==='ok'||t==='ready'||t==='got it'||t===''))c.click();
+  });
+}
 break;
 }
 }catch(e){}
@@ -190,24 +247,36 @@ async function joinGame(pin, playerName) {
   await gamePage.waitForTimeout(8000);
 
   try {
-    // Type name into the first visible text input
+    // Type name into the first visible text input (handles both play.blooket.com and cryptohack.blooket.com)
     const inputs = await gamePage.$$('input');
-    for (const i of inputs) { const vis = await i.isVisible(); const nameAttr = await i.getAttribute('name'); const typeAttr = await i.getAttribute('type'); if (vis && typeAttr !== 'hidden' && nameAttr !== 'join-code') { await i.click(); await gamePage.keyboard.type(name, { delay: 50 }); break; } }
+    for (const i of inputs) { 
+      const vis = await i.isVisible(); 
+      const typeAttr = await i.getAttribute('type'); 
+      const placeholder = await i.getAttribute('placeholder') || '';
+      if (vis && typeAttr !== 'hidden' && typeAttr !== 'password' && 
+          (placeholder.includes('name')||placeholder.includes('Name')||placeholder.includes('Nickname')||placeholder===''||!placeholder)) { 
+        await i.click(); await i.fill(''); await gamePage.keyboard.type(name, { delay: 50 }); break; 
+      } 
+    }
+    // Try click join/register button
+    let btnClicked = false;
+    for (const sel of ['[class*=joinButton]','[class*=playButton]','[class*=registerButton]','button','[role=button]']) {
+      try {
+        const btns = await gamePage.$$(sel);
+        for (const btn of btns) {
+          const txt = ((await btn.textContent()) || '').trim().toLowerCase();
+          if (txt.includes('join')||txt.includes('play')||txt.includes('enter')||txt.includes('register')||txt.includes('pay')) {
+            if (await btn.isVisible()) { await btn.click(); btnClicked = true; break; }
+          }
+        }
+      } catch(e) {}
+      if (btnClicked) break;
+    }
+    await gamePage.waitForTimeout(1000);
     await gamePage.keyboard.press("Enter");
-    await gamePage.waitForTimeout(2000);
-    try { await gamePage.locator("[class*=joinButton]").first().click({timeout:2000}); } catch(e) {}
-    await gamePage.waitForTimeout(2000);
-    await gamePage.keyboard.press("Enter");
-    await gamePage.waitForTimeout(2000);
-    try { await gamePage.locator("[class*=joinButton]").first().click({timeout:2000}); } catch(e) {}
-    // Click join button (try multiple selectors)
-    try { await gamePage.locator('[class*="joinButton"], [class*="join"]').first().click({timeout:3000}); } catch(e) {}
-    await gamePage.waitForTimeout(3000);
-    // Also try pressing Enter
-    try { await gamePage.keyboard.press('Enter'); } catch(e) {}
-    await gamePage.waitForTimeout(3000);
+    await gamePage.waitForTimeout(5000);
     log(`   ✅ 名字已提交: ${gamePage.url()}`);
-  } catch (e) { log('   ℹ️ 跳过名字'); }
+  } catch (e) { log('   ℹ️ 跳过名字: '+e.message); }
 
   log(`✅ 已加入: ${gamePage.url()}`);
   startMonitor(); 
@@ -241,6 +310,10 @@ function startMonitor() {
           botStatus.mode = 'fishing';
           botStatus.gameMode = 'fishing';
           log('🎣 钓鱼中 | 🐟 重量:'+state.weight+' | 💰 '+state.gold+' | 狂:'+(state.isFrenzy?'是':'否')+' | 饵:'+state.lure);
+        } else if (state.stage==='intro'&&state.passwordOptions&&state.passwordOptions.length>0) {
+          botStatus.mode = 'playing';
+          botStatus.gameMode = 'crypto';
+          log('🔑 密码选择 | 选项:'+(state.passwordOptions||[]).slice(0,5).join(', '));
         } else if (state.passwordOptions&&state.passwordOptions.length>0) {
           botStatus.mode = 'guessing';
           botStatus.gameMode = 'crypto';
