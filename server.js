@@ -174,7 +174,16 @@ async function joinGame(pin, playerName) {
 
   await gamePage.goto('https://play.blooket.com/play', { waitUntil: 'domcontentloaded', timeout: 15000 });
   await gamePage.waitForTimeout(3000);
-  await gamePage.evaluate(() => { document.querySelectorAll('button').forEach(b => { if (b.textContent?.includes('Accept All')) b.click(); }); });
+  // Aggressively dismiss ALL cookie consent
+  await gamePage.evaluate(() => {
+    document.querySelectorAll('button').forEach(b => {
+      var t=b.textContent||'';
+      if(t.includes('Accept All')||t.includes('Accept')){b.click()}
+      if(t.includes('Reject All'))b.click();
+    });
+    // Also remove overlay elements
+    document.querySelectorAll('[class*="overlay"],[class*="cookie"],[class*="modal"]').forEach(e=>e.remove());
+  });
   await gamePage.waitForTimeout(2000);
   await gamePage.locator('input[name="join-code"]').click();
   await gamePage.keyboard.type(pin, { delay: 80 });
@@ -183,10 +192,15 @@ async function joinGame(pin, playerName) {
   await gamePage.waitForTimeout(8000);
 
   try {
+    // Type name into the first visible text input
     const inputs = await gamePage.$$('input');
-    for (const i of inputs) { const vis = await i.isVisible(); if (vis) { await i.click(); await gamePage.keyboard.type(name, { delay: 50 }); break; } }
-    await gamePage.locator('[class*="joinButton"]').click();
-    await gamePage.waitForTimeout(5000);
+    for (const i of inputs) { const vis = await i.isVisible(); const nameAttr = await i.getAttribute('name'); const typeAttr = await i.getAttribute('type'); if (vis && typeAttr !== 'hidden' && nameAttr !== 'join-code') { await i.click(); await gamePage.keyboard.type(name, { delay: 50 }); break; } }
+    // Click join button (try multiple selectors)
+    try { await gamePage.locator('[class*="joinButton"], [class*="join"]').first().click({timeout:3000}); } catch(e) {}
+    await gamePage.waitForTimeout(3000);
+    // Also try pressing Enter
+    try { await gamePage.keyboard.press('Enter'); } catch(e) {}
+    await gamePage.waitForTimeout(3000);
     log(`   ✅ 名字已提交: ${gamePage.url()}`);
   } catch (e) { log('   ℹ️ 跳过名字'); }
 
