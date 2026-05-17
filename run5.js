@@ -23,13 +23,15 @@ chromium.use(StealthPlugin());
         for(var el of document.querySelectorAll('*')){
           var k=Object.keys(el).filter(x=>x.indexOf('__react')===0);if(!k.length)continue;
           var s=wF(el[k[0]],0);if(!s)continue;
-          var hasGame=Object.keys(s).some(k=>k==='question'||k==='stage'||k==='gold'||k==='choices');
+          var hasGame=Object.keys(s).some(k=>k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword');
           if(!hasGame)continue;
           var qt=s.question&&(s.question.question||s.question.text);
           var stage=s.stage;
+          var weight=s.weight,lure=s.lure,isFrenzy=s.isFrenzy;
+          var crval=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
 
           // 1. Answer question
-          if(qt&&s.question.correctAnswers&&stage==='question'){
+          if(qt&&s.question.correctAnswers){
             var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
             document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
               var t=(c.textContent||'').trim();
@@ -50,7 +52,28 @@ chromium.use(StealthPlugin());
             if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0)ce[bestIdx].click();
           }
 
-          // 3. Click ALL buttons/clickables to advance
+          // 3. Fishing auto-click (cast/fish/reel during fishing phase)
+          if((weight!==undefined||lure!==undefined)&&!qt){
+            document.querySelectorAll('[class*="cast"],[class*="Cast"],[class*="fish"],[class*="Fish"],[class*="reel"],[class*="Reel"]').forEach(function(c){
+              if(c.offsetHeight>0)c.click();
+            });
+          }
+
+          // 4. Crypto password guessing
+          if(pwOpts&&pwOpts.length>0&&!qt){
+            var correctPw=s.correctPassword||(pwOpts[0]||'').toString().trim();
+            var clicked=false;
+            document.querySelectorAll('[class*="button"],[role=button]').forEach(function(c){
+              var t=(c.textContent||'').trim();
+              if(!clicked&&correctPw&&t===correctPw&&c.offsetHeight>0){c.click();clicked=true;}
+            });
+            if(!clicked&&s&&s.password!==undefined&&s.passwordOptions){
+              s.password=s.correctPassword||s.passwordOptions[0];
+              if(s.forceUpdate)s.forceUpdate();
+            }
+          }
+
+          // 5. Click ALL buttons/clickables to advance
           document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0)c.click()});
           document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0)c.click()});
           break;
@@ -58,7 +81,7 @@ chromium.use(StealthPlugin());
       }catch(e){}
     },600);
   })()});
-  console.log('AA v5 injected (with chest selection)');
+  console.log('AA v6 injected (Gold Quest + Fishing + Crypto)');
 
   // Monitor 40s
   let lastGold=undefined;

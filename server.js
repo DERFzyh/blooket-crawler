@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Blooket Crawler v2.5 — 远程控制自动答题爬虫
+ * Blooket Crawler v2.6 — 远程控制自动答题爬虫（支持 Gold Quest + Fishing Frenzy + Crypto Hack）
  * 部署: https://blooket.derfzyh.xyz  |  文档: /docs
  * 代码与 run5.js 同步 — 唯一权威版本
  */
@@ -46,14 +46,14 @@ function wF(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s)retur
 for(var el of document.querySelectorAll('*')){
 var k=Object.keys(el).filter(function(x){return x.indexOf('__react')===0});if(!k.length)continue;
 var s=wF(el[k[0]],0);if(!s)continue;
-var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'});
+var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'});
 if(!hasGame)continue;
 var qt=s.question&&(s.question.question||s.question.text);
 
 // Question phase
 if(qt&&s.question.correctAnswers){
 var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
-return{stage:s.stage||'question',questionText:qt,correctAnswers:ca,gold:s.gold,pathname:location.pathname}
+return{stage:s.stage||'question',questionText:qt,correctAnswers:ca,gold:s.gold,weight:s.weight,isFrenzy:s.isFrenzy,lure:s.lure,crypto:s.crypto,password:s.password,passwordOptions:s.passwordOptions,correctPassword:s.correctPassword,pathname:location.pathname}
 }
 
 // Prize phase
@@ -62,8 +62,18 @@ var opts=s.choices.map(function(c){var t=c.text||'';return t});
 return{stage:'prize',choices:opts,gold:s.gold,pathname:location.pathname}
 }
 
+// Fishing state (weight/lure present, no question)
+if(s.weight!==undefined||s.lure!==undefined){
+return{stage:s.stage||'fishing',weight:s.weight,isFrenzy:s.isFrenzy,lure:s.lure,gold:s.gold,pathname:location.pathname}
+}
+
+// Crypto guessing state (passwordOptions present, no question)
+if(s.password!==undefined&&s.passwordOptions&&s.passwordOptions.length>0){
+return{stage:s.stage||'guessing',crypto:s.crypto,password:s.password,passwordOptions:s.passwordOptions,correctPassword:s.correctPassword,gold:s.gold,pathname:location.pathname}
+}
+
 // Any game state
-if(s.stage)return{stage:s.stage,gold:s.gold,pathname:location.pathname}
+if(s.stage)return{stage:s.stage,gold:s.gold,weight:s.weight,crypto:s.crypto,pathname:location.pathname}
 }
 return{stage:'none',pathname:location.pathname}
 })()`;
@@ -77,12 +87,14 @@ function wF(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s)retur
 for(var el of document.querySelectorAll('*')){
 var k=Object.keys(el).filter(function(x){return x.indexOf('__react')===0});if(!k.length)continue;
 var s=wF(el[k[0]],0);if(!s)continue;
-var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'});
+var hasGame=Object.keys(s).some(function(k){return k==='question'||k==='stage'||k==='gold'||k==='choices'||k==='weight'||k==='lure'||k==='crypto'||k==='password'||k==='correctPassword'});
 if(!hasGame)continue;
 var qt=s.question&&(s.question.question||s.question.text);
+var weight=s.weight,lure=s.lure,isFrenzy=s.isFrenzy;
+var cr=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
 
 // 1. Answer question
-if(qt&&s.question.correctAnswers&&s.stage==='question'){
+if(qt&&s.question.correctAnswers){
 var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
 document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
 var t=(c.textContent||'').trim();
@@ -103,7 +115,31 @@ var ce=document.querySelectorAll('[class*="chest"],[class*="Chest"],[class*="pri
 if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.log('[Bot] picked chest #'+bestIdx+' ('+bestVal+')')}
 }
 
-// 3. Click ALL buttons/clickables to advance
+// 3. Fishing auto-click (cast/fish/reel during fishing phase)
+if((weight!==undefined||lure!==undefined)&&!qt){
+document.querySelectorAll('[class*="cast"],[class*="Cast"],[class*="fish"],[class*="Fish"],[class*="reel"],[class*="Reel"]').forEach(function(c){
+if(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}
+});
+}
+
+// 4. Crypto password guessing
+if(pwOpts&&pwOpts.length>0&&!qt){
+var correctPw=s.correctPassword||(pwOpts[0]||'').toString().trim();
+// Click element matching the correct password
+var clicked=false;
+document.querySelectorAll('[class*="button"],[role=button]').forEach(function(c){
+var t=(c.textContent||'').trim();
+if(!clicked&&correctPw&&t===correctPw&&c.offsetHeight>0){c.click();console.log('[Bot] crypto guessed: '+t);clicked=true}
+});
+// Fallback: React state override with correctPassword
+if(!clicked&&s&&s.password!==undefined&&s.passwordOptions){
+s.password=s.correctPassword||s.passwordOptions[0];
+if(s.forceUpdate)s.forceUpdate();
+console.log('[Bot] crypto state override: '+(s.correctPassword||s.passwordOptions[0]))
+}
+}
+
+// 5. Click ALL buttons/clickables to advance
 document.querySelectorAll('button:not([disabled])').forEach(function(c){if(c.offsetHeight>0)c.click()});
 document.querySelectorAll('[role=button]').forEach(function(c){if(c.offsetHeight>0)c.click()});
 break;
@@ -161,10 +197,21 @@ function startMonitor() {
         io.emit('gameState', state);
         if (state.questionText) {
           botStatus.mode = 'playing';
-          log(`📝 题目: ${state.questionText} | ✅ ${(state.correctAnswers||[]).join(',')} | 💰 ${state.gold||0}`);
+          var parts = ['📝 题目: '+state.questionText, '✅ '+(state.correctAnswers||[]).join(','), '💰 '+(state.gold||0)];
+          if (state.weight!==undefined) parts.push('🐟 重量:'+state.weight+' 狂:'+(state.isFrenzy?'是':'否'));
+          if (state.crypto!==undefined) parts.push('🔐 加密币:'+state.crypto+(state.correctPassword?' 正确密码:'+state.correctPassword:''));
+          log(parts.join(' | '));
           if (state.pathname?.includes('fishing')) botStatus.gameMode = 'fishing';
           else if (state.pathname?.includes('gold')) botStatus.gameMode = 'gold';
           else if (state.pathname?.includes('hack')) botStatus.gameMode = 'crypto';
+        } else if (state.weight!==undefined) {
+          botStatus.mode = 'fishing';
+          botStatus.gameMode = 'fishing';
+          log('🎣 钓鱼中 | 🐟 重量:'+state.weight+' | 💰 '+state.gold+' | 狂:'+(state.isFrenzy?'是':'否')+' | 饵:'+state.lure);
+        } else if (state.passwordOptions&&state.passwordOptions.length>0) {
+          botStatus.mode = 'guessing';
+          botStatus.gameMode = 'crypto';
+          log('🔓 密码猜测 | 🔐 加密币:'+state.crypto+' | 密码:'+state.password+' | 正确:'+state.correctPassword+' | 选项:'+(state.passwordOptions||[]).slice(0,3).join(',')+'');
         }
         io.emit('status', botStatus);
       }
@@ -178,7 +225,7 @@ async function startAutoAnswer() {
   log('🤖 自动答题启动');
   for (const f of gamePage.frames()) { try { await f.evaluate(AUTO_ANSWER_JS); } catch(e) {} }
   try { await gamePage.evaluate(AUTO_ANSWER_JS); } catch(e) {}
-  log('✅ 自动答题已激活（答题+最优宝箱+前进）');
+  log('✅ 自动答题已激活（答题+最优宝箱+钓鱼+密码猜测+前进）');
 }
 
 function stopAutoAnswer() {
