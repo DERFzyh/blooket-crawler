@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Blooket Crawler v2.6 — 远程控制自动答题爬虫（支持 Gold Quest + Fishing Frenzy + Crypto Hack）
+ * Blooket Crawler v2.6.1 — 远程控制自动答题爬虫（Gold Quest + Fishing Frenzy + Crypto Hack）
  * 部署: https://blooket.derfzyh.xyz  |  文档: /docs
  * 代码与 run5.js 同步 — 唯一权威版本
  */
