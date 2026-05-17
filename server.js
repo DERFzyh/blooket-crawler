@@ -173,10 +173,15 @@ async function joinGame(pin, playerName) {
   log(`🏃 加入 PIN:${pin} (${name})`);
 
   await gamePage.goto('https://play.blooket.com/play', { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await gamePage.waitForTimeout(3000);
-  // Dismiss cookie consent using Playwright text selector (more reliable)
-  try { await gamePage.click('text="Accept All"', { timeout: 3000 }); await gamePage.waitForTimeout(1000); } catch(e) {}
-  try { await gamePage.click('text="Accept"', { timeout: 2000 }); await gamePage.waitForTimeout(500); } catch(e) {}
+  await gamePage.waitForTimeout(2000);
+  // Dismiss cookie consent with aggressive evaluate + wait
+  await gamePage.evaluate(() => {
+    var btns=document.querySelectorAll('button');
+    for(var i=0;i<btns.length;i++){var t=btns[i].textContent||'';if(t.includes('Accept')||t.includes('Reject'))btns[i].click()}
+  });
+  await gamePage.waitForTimeout(2000);
+  // Try again with Playwright click as fallback
+  try { await gamePage.click('button:has-text("Accept")', { timeout: 3000 }); await gamePage.waitForTimeout(1000); } catch(e) {}
   await gamePage.locator('input[name="join-code"]').click();
   await gamePage.keyboard.type(pin, { delay: 80 });
   log('   ✅ PIN 已输入');
