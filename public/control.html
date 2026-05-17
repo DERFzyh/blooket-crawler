@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blooket 爬虫控制面板 v2</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  display: flex; height: 100vh; overflow: hidden;
+}
+.sidebar {
+  width: 300px; background: #1a1a2e; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  border-right: 1px solid #2a2a4a; overflow-y: auto;
+}
+.sidebar h1 { font-size: 1.3em; color: #7c5cff; text-align: center; }
+.card {
+  background: #222244; border-radius: 10px; padding: 12px;
+  border: 1px solid #333355;
+}
+.card h3 { font-size: 0.85em; color: #aabbdd; margin-bottom: 8px; }
+input, select, button {
+  width: 100%; padding: 9px 10px; margin: 3px 0;
+  border-radius: 7px; border: 1px solid #444466;
+  background: #1a1a2e; color: #e0e0e0; font-size: 0.85em;
+}
+input:focus, select:focus { outline: none; border-color: #7c5cff; }
+button {
+  cursor: pointer; font-weight: 600; transition: all 0.15s;
+}
+button:hover { opacity: 0.9; }
+.btn-primary { background: #7c5cff; border: none; }
+.btn-success { background: #22aa55; border: none; }
+.btn-danger { background: #cc3355; border: none; }
+.btn-warning { background: #cc8800; border: none; }
+.btn-info { background: #3366cc; border: none; }
+.cheat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.cheat-grid button { font-size: 0.78em; padding: 7px; }
+
+.main {
+  flex: 1; display: flex; flex-direction: column; padding: 16px; overflow: hidden;
+}
+.status-bar { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.status-badge {
+  padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600;
+}
+.status-idle { background:#333; color:#888; }
+.status-login { background:#224; color:#6af; }
+.status-joining { background:#432; color:#da5; }
+.status-playing { background:#234; color:#5cf; }
+.screen-area {
+  flex: 1; background: #1a1a2e; border-radius: 10px;
+  border: 1px solid #2a2a4a; display: flex;
+  align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;
+}
+.screen-area img { max-width: 100%; max-height: 100%; }
+.placeholder { color: #555; font-size: 1em; text-align: center; line-height: 1.8; }
+.log-area {
+  height: 180px; background: #0a0a14; border-radius: 8px;
+  border: 1px solid #222; padding: 10px; overflow-y: auto;
+  font-family: 'Consolas', monospace; font-size: 0.78em; line-height: 1.4;
+}
+.game-state { margin-top: 8px; font-size: 0.8em; color: #8af; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h1>🎮 Blooket 爬虫 v2</h1>
+  <p style="text-align:center;color:#666;font-size:0.75em;">加入游戏 → 自动答题 → 作弊 | <a href="/docs" style="color:#7c5cff;">📖 文档</a></p>
+
+  <!-- 使用说明 -->
+  <div class="card" style="background:#223322;">
+    <h3>📖 使用步骤</h3>
+    <ol style="font-size:0.8em;padding-left:16px;color:#aaddaa;line-height:1.6;">
+      <li>在浏览器打开 <b>play.blooket.com</b></li>
+      <li>创建一个游戏，获取 PIN</li>
+      <li>将 PIN 输入到下方</li>
+      <li>点击「加入游戏」</li>
+      <li>用你自己的浏览器也加入</li>
+      <li>启动自动答题 + 作弊</li>
+    </ol>
+  </div>
+
+  <!-- 加入游戏 -->
+  <div class="card">
+    <h3>🎯 加入游戏</h3>
+    <input type="text" id="gamePin" placeholder="输入游戏 PIN 码">
+    <input type="text" id="playerName" placeholder="机器人名字" value="Bot">
+    <button class="btn-success" onclick="doJoin()">🏃 加入游戏</button>
+  </div>
+
+  <!-- 自动答题 -->
+  <div class="card">
+    <h3>🤖 自动答题</h3>
+    <button class="btn-success" onclick="doAutoAnswer()">▶ 启动自动答题</button>
+    <button class="btn-danger" onclick="doStop()">⏹ 停止</button>
+    <div id="autoAnswerStatus" style="font-size:0.75em;margin-top:4px;"></div>
+  </div>
+
+  <!-- 作弊功能 -->
+  <div class="card">
+    <h3>🕹️ 作弊快捷键</h3>
+    <select id="gameMode" style="margin-bottom:6px;">
+      <option value="fishing">🎣 钓鱼狂潮</option>
+      <option value="gold">💰 淘金热</option>
+      <option value="crypto">🔐 加密黑客</option>
+    </select>
+    <div id="cheatButtons" class="cheat-grid"></div>
+  </div>
+
+  <!-- 工具 -->
+  <div style="margin-top:auto;display:flex;gap:6px;">
+    <button class="btn-info" onclick="doScreenshot()" style="flex:1;">📸 截图</button>
+    <button class="btn-primary" onclick="doGetState()" style="flex:1;">📊 状态</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="status-bar">
+    <span id="statusBadge" class="status-badge status-idle">⚪ 空闲</span>
+    <span id="gameInfo" style="color:#888;font-size:0.8em;"></span>
+  </div>
+
+  <div class="screen-area" id="screenArea">
+    <div class="placeholder">
+      <div>📱 游戏画面</div>
+      <div style="font-size:0.7em;color:#444;">截图后将显示在此</div>
+    </div>
+  </div>
+
+  <div class="log-area" id="logArea">
+    <div>🟢 系统就绪，等待指令...</div>
+  </div>
+  <div class="game-state" id="gameState"></div>
+</div>
+
+<script>
+const socket = io();
+let currentGameMode = 'fishing';
+
+document.getElementById('gameMode').addEventListener('change', e => {
+  currentGameMode = e.target.value;
+  updateCheatButtons();
+});
+
+function addLog(msg) {
+  const la = document.getElementById('logArea');
+  const div = document.createElement('div');
+  div.textContent = msg;
+  la.appendChild(div);
+  la.scrollTop = la.scrollHeight;
+  while (la.children.length > 200) la.removeChild(la.firstChild);
+}
+
+function updateCheatButtons() {
+  const container = document.getElementById('cheatButtons');
+  const cheats = {
+    fishing: [
+      ['frenzy','永续Frenzy'],
+      ['weight','999重量'],
+      ['lure','Max鱼饵']
+    ],
+    gold: [
+      ['setGold','设置金币'],
+      ['esp','宝箱ESP']
+    ],
+    crypto: [
+      ['setCrypto','设置加密货币'],
+      ['guessPassword','自动猜密码']
+    ]
+  };
+  const list = cheats[currentGameMode] || [];
+  container.innerHTML = list.map(([type, label]) => 
+    `<button class="btn-warning" onclick="doCheat('${type}')">${label}</button>`
+  ).join('');
+}
+
+socket.on('log', msg => addLog(msg));
+
+socket.on('status', status => {
+  const badge = document.getElementById('statusBadge');
+  const info = document.getElementById('gameInfo');
+  badge.className = 'status-badge status-' + (status.mode || 'idle');
+  const map = {
+    idle: '⚪ 空闲', login: '🔑 登录中', joining: '🏃 加入中', playing: '🎯 游戏中'
+  };
+  badge.textContent = map[status.mode] || status.mode;
+  info.textContent = (status.gamePin ? 'PIN:' + status.gamePin + ' ' : '') + 
+                     (status.gameMode ? '模式:' + status.gameMode : '');
+  document.getElementById('autoAnswerStatus').textContent = 
+    status.autoAnswer ? '🟢 自动答题中' : '';
+  
+  if (status.gameMode && status.gameMode !== currentGameMode) {
+    // Sync game mode selector with detected game
+    const sel = document.getElementById('gameMode');
+    if (['fishing','gold','crypto'].includes(status.gameMode)) {
+      sel.value = status.gameMode;
+      currentGameMode = status.gameMode;
+      updateCheatButtons();
+    }
+  }
+});
+
+socket.on('gameState', state => {
+  const el = document.getElementById('gameState');
+  if (state.questionText) {
+    el.innerHTML = `📝 <b>题目:</b> ${state.questionText}<br>
+      ✅ <b>答案:</b> ${(state.correctAnswers||[]).join(', ')}`;
+  }
+  if (state.gold !== undefined) el.innerHTML += ` 💰 金币: ${state.gold}`;
+  if (state.weight !== undefined) el.innerHTML += ` ⚖️ 重量: ${state.weight} lbs`;
+  if (state.crypto !== undefined) el.innerHTML += ` 🔐 加密货币: ${state.crypto}`;
+});
+
+socket.on('screenshot', path => {
+  const area = document.getElementById('screenArea');
+  area.innerHTML = `<img src="${path}?t=${Date.now()}" style="max-width:100%;max-height:100%;">`;
+});
+
+socket.on('cheatResult', data => {
+  addLog(`🎯 [${data.cheatType}] → ${data.result}`);
+});
+
+function doJoin() {
+  const pin = document.getElementById('gamePin').value;
+  const name = document.getElementById('playerName').value;
+  if (!pin) { addLog('❌ 请输入游戏 PIN'); return; }
+  socket.emit('joinGame', { pin, name });
+}
+
+function doAutoAnswer() { socket.emit('startAutoAnswer'); }
+function doStop() { socket.emit('stop'); }
+
+function doCheat(type) {
+  socket.emit('cheat', { gameMode: currentGameMode, cheatType: type, value: null });
+}
+
+function doScreenshot() { socket.emit('screenshot'); }
+function doGetState() { socket.emit('getState'); }
+
+// Init cheat buttons
+updateCheatButtons();
+</script>
+</body>
+</html>

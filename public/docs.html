@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blooket 爬虫 — 项目文档</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f1a; color: #d0d0d0;
+  max-width: 960px; margin: 0 auto; padding: 40px 20px;
+  line-height: 1.8;
+}
+a { color: #7c5cff; }
+h1 { font-size: 2em; color: #7c5cff; margin-bottom: 8px; border-bottom: 2px solid #2a2a4a; padding-bottom: 12px; }
+h2 { font-size: 1.3em; color: #aabbee; margin: 32px 0 12px; border-left: 3px solid #7c5cff; padding-left: 12px; }
+h3 { font-size: 1em; color: #8899cc; margin: 16px 0 8px; }
+p { margin: 8px 0; }
+code {
+  background: #1a1a2e; padding: 2px 7px; border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9em; color: #eebb55;
+}
+pre {
+  background: #0a0a14; border: 1px solid #2a2a4a; border-radius: 8px;
+  padding: 16px; overflow-x: auto; margin: 12px 0; font-size: 0.85em;
+  line-height: 1.6;
+}
+pre code { background: none; padding: 0; color: #b0d0b0; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: #1a1a2e; text-align: left; padding: 10px 14px; color: #aabbdd; font-size: 0.9em; }
+td { padding: 10px 14px; border-bottom: 1px solid #1a1a2e; font-size: 0.9em; }
+li { margin: 6px 0; }
+ul, ol { padding-left: 24px; }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.75em;
+  font-weight: 600; margin-right: 6px;
+}
+.badge-green { background: #1a3a1a; color: #5d5; }
+.badge-yellow { background: #3a2a0a; color: #da5; }
+.badge-blue { background: #1a1a3a; color: #6af; }
+.back-link { display: inline-block; margin-top: 40px; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>🎮 Blooket 爬虫 v2.3</h1>
+<p>
+  <span class="badge badge-green">运行中</span>
+  <span class="badge badge-blue">服务器端</span>
+  <span class="badge badge-yellow">远程可控</span>
+</p>
+<p>
+  部署在服务器的远程控制 <strong>Blooket 自动答题与游戏作弊爬虫</strong>。
+  任何浏览器打开 <a href="https://blooket.derfzyh.xyz">控制面板</a> 即可操控服务器上的隐身浏览器
+  自动加入游戏、答题、作弊。
+</p>
+
+<h2>📋 需求</h2>
+
+<table>
+  <tr><th>需求</th><th>说明</th><th>状态</th></tr>
+  <tr><td>服务器端运行</td><td>在 Linux 服务器上以 headless 浏览器运行，不依赖用户本地浏览器</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>远程浏览器控制</td><td>任何浏览器打开 Web 控制面板，通过 WebSocket 实时操控</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>自动答题</td><td>读取 React 组件状态获取正确答案，自动点击 DOM 中的答案按钮</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>Fishing Frenzy 作弊</td><td>永续Frenzy、设置鱼重、设置鱼饵等级</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>Gold Quest 作弊</td><td>设置金币、宝箱ESP（透视选择奖励）</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>Crypto Hack 作弊</td><td>设置加密货币、自动猜测密码</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>HTTPS 公网部署</td><td>通过 Nginx + SSH 隧道 + Let's Encrypt 部署</td><td><span class="badge badge-green">完成</span></td></tr>
+  <tr><td>多玩家自动加入</td><td>自动启动多个机器人玩家（满足最低人数要求）</td><td><span class="badge badge-yellow">部分</span></td></tr>
+  <tr><td>自动创建游戏</td><td>登录 → 选游戏模式 → 设置 → 获取 PIN（全自动）</td><td><span class="badge badge-yellow">部分</span></td></tr>
+</table>
+
+<h2>🏗️ 架构</h2>
+
+<pre><code>internet → blooket.derfzyh.xyz (SSL)
+                  │
+                  ▼
+          Aliyun Nginx (反向代理 + WebSocket)
+                  │
+                  ▼ SSH 反向隧道 (:18092)
+              fred-vm (:3458)
+                  │
+    ┌─────────────┼─────────────┐
+    │             │              │
+  Express      Socket.IO      Playwright
+  (静态文件)   (实时通信)     (隐身浏览器)
+                                │
+                         Blooket 游戏页面
+                     (React fiber 状态注入)</code></pre>
+
+<h3>技术栈</h3>
+<table>
+  <tr><th>层次</th><th>技术</th><th>作用</th></tr>
+  <tr><td>浏览器自动化</td><td>Playwright + playwright-extra + StealthPlugin</td><td>启动 headless Chromium，绕过 Cloudflare 检测</td></tr>
+  <tr><td>后端服务</td><td>Node.js + Express</td><td>HTTP 服务，静态文件，API 路由</td></tr>
+  <tr><td>实时通信</td><td>Socket.IO</td><td>双向 WebSocket，推送状态/日志/截图</td></tr>
+  <tr><td>反检测</td><td>navigator.webdriver = false, 随机 User-Agent, Cookie 自动同意</td><td>绕过 Blooket 机器人检测</td></tr>
+  <tr><td>游戏注入</td><td>React Fiber 遍历</td><td>访问组件内部状态，读取题目/修改游戏数据</td></tr>
+  <tr><td>反向代理</td><td>Nginx + SSH 反向隧道</td><td>HTTPS 终止，WebSocket 升级，端口转发</td></tr>
+  <tr><td>SSL 证书</td><td>Let's Encrypt / certbot</td><td>自动续期 HTTPS 证书</td></tr>
+</table>
+
+<h2>🔬 核心技术原理</h2>
+
+<h3>React Fiber 状态遍历</h3>
+<p>
+  Blooket 使用 React 构建。React 在每个 DOM 元素上存储了一个 <code>__reactFiber$*</code> 属性，
+  指向对应的 fiber 节点。通过遍历 fiber 树，可以访问任何组件的内部 <code>state</code> 和
+  <code>props</code>，无需逆向工程或 API 破解。
+</p>
+
+<pre><code>// 遍历 React fiber 树查找游戏状态
+for (const el of document.querySelectorAll('*')) {
+  const key = Object.keys(el).find(k => k.startsWith('__reactFiber'));
+  if (!key) continue;
+  let node = el[key];
+  for (let i = 0; i < 40 && node; i++) {
+    const s = node.stateNode?.state;
+    // s.question.correctAnswers  ← 正确答案
+    // s.gold, s.weight, s.crypto ← 游戏数据
+    node = node.return || node.child || node.sibling;
+  }
+}</code></pre>
+
+<h3>自动答题流程</h3>
+<ol>
+  <li>每 400ms 遍历页面所有元素的 React fiber 树</li>
+  <li>找到包含 <code>question.correctAnswers</code> 的组件状态</li>
+  <li>在 DOM 中搜索 <code>class*="answerContainer"</code> 元素</li>
+  <li>匹配 <code>textContent</code> 与正确答案</li>
+  <li>自动点击匹配的元素</li>
+  <li>在 <code>stage === 'feedback'</code> 时自动点击 Next 按钮</li>
+</ol>
+
+<h3>游戏作弊原理</h3>
+<table>
+  <tr><th>游戏</th><th>作弊方式</th><th>修改的状态字段</th></tr>
+  <tr>
+    <td>🎣 Fishing Frenzy</td>
+    <td>直接修改 React state 并调用 forceUpdate()</td>
+    <td><code>state.isFrenzy=true</code>, <code>state.weight=N</code>, <code>state.lure=N</code></td>
+  </tr>
+  <tr>
+    <td>💰 Gold Quest</td>
+    <td>设置金币数量、读取宝箱奖励</td>
+    <td><code>state.gold=N</code>, <code>state.choices[*].gold</code></td>
+  </tr>
+  <tr>
+    <td>🔐 Crypto Hack</td>
+    <td>设置加密货币、自动选密码</td>
+    <td><code>state.crypto=N</code>, <code>state.password=options[0]</code></td>
+  </tr>
+</table>
+
+<h2>📡 API / Socket.IO 接口</h2>
+
+<table>
+  <tr><th>事件</th><th>方向</th><th>参数</th><th>说明</th></tr>
+  <tr><td><code>joinGame</code></td><td>→ 服务端</td><td>{ pin, name }</td><td>机器人加入游戏</td></tr>
+  <tr><td><code>startAutoAnswer</code></td><td>→ 服务端</td><td>—</td><td>启动自动答题</td></tr>
+  <tr><td><code>stop</code></td><td>→ 服务端</td><td>—</td><td>停止所有操作</td></tr>
+  <tr><td><code>cheat</code></td><td>→ 服务端</td><td>{ gameMode, cheatType, value }</td><td>执行作弊</td></tr>
+  <tr><td><code>getState</code></td><td>→ 服务端</td><td>—</td><td>获取游戏状态</td></tr>
+  <tr><td><code>screenshot</code></td><td>→ 服务端</td><td>—</td><td>请求截图</td></tr>
+  <tr><td><code>reset</code></td><td>→ 服务端</td><td>—</td><td>重置状态</td></tr>
+  <tr><td><code>status</code></td><td>← 客户端</td><td>BotStatus</td><td>状态推送</td></tr>
+  <tr><td><code>log</code></td><td>← 客户端</td><td>string</td><td>日志推送</td></tr>
+  <tr><td><code>gameState</code></td><td>← 客户端</td><td>object</td><td>游戏状态（题目/答案/数据）</td></tr>
+  <tr><td><code>screenshot</code></td><td>← 客户端</td><td>path</td><td>截图 URL</td></tr>
+  <tr><td><code>cheatResult</code></td><td>← 客户端</td><td>{ cheatType, result }</td><td>作弊执行结果</td></tr>
+</table>
+
+<h2>🎮 支持的游戏模式</h2>
+
+<table>
+  <tr><th>游戏模式</th><th>自动答题</th><th>专属作弊</th></tr>
+  <tr><td>🎣 Fishing Frenzy (钓鱼狂潮)</td><td>✅</td><td>永续Frenzy / 设置重量 / 设置鱼饵</td></tr>
+  <tr><td>💰 Gold Quest (淘金热)</td><td>✅</td><td>设置金币 / 宝箱ESP</td></tr>
+  <tr><td>🔐 Crypto Hack (加密黑客)</td><td>✅</td><td>设置加密货币 / 自动猜密码</td></tr>
+  <tr><td>🏭 Factory (工厂)</td><td>✅</td><td>—</td></tr>
+  <tr><td>🏎️ Racing (竞速)</td><td>✅</td><td>—</td></tr>
+  <tr><td>🛡️ Tower Defense</td><td>✅</td><td>—</td></tr>
+  <tr><td>🦖 Deceptive Dinos</td><td>✅</td><td>—</td></tr>
+  <tr><td>Café / Kingdom / Doom / Rush</td><td>✅</td><td>—</td></tr>
+</table>
+
+<h2>🔧 部署配置</h2>
+
+<h3>服务器</h3>
+<pre><code># 启动服务
+cd ~/blooket-crawler
+node server.js
+
+# SSH 反向隧道 (fred-vm:3458 → aliyun:18092)
+ssh -fN -R 18092:localhost:3458 root@openclaw.derfzyh.xyz
+
+# Nginx (位于 openclaw.derfzyh.xyz)
+# blooket.derfzyh.xyz → proxy_pass http://127.0.0.1:18092
+# 包含 WebSocket 支持 (Upgrade, Connection headers)
+</code></pre>
+
+<h3>依赖</h3>
+<pre><code>express        # HTTP 服务
+socket.io      # WebSocket 实时通信
+playwright     # 浏览器自动化核心
+playwright-extra           # Playwright 扩展
+puppeteer-extra-plugin-stealth  # 反检测插件
+</code></pre>
+
+<h2>🧪 已知限制</h2>
+<ul>
+  <li><strong>Cookie 弹窗</strong> — Blooket 每次页面加载都弹出 cookie 同意框，需延迟等待自动关闭</li>
+  <li><strong>iframe 隔离</strong> — 部分游戏内容在 iframe 中，需通过 <code>page.frames()</code> 访问</li>
+  <li><strong>多玩家要求</strong> — Fishing Frenzy 等游戏需要 ≥2 名玩家才能开始</li>
+  <li><strong>NextJS RSC</strong> — PIN 输入需要通过真实键盘打字触发 React onChange，JS 赋值无效</li>
+  <li><strong>游戏创建</strong> — 全自动创建游戏需要处理 School Identification 弹窗，当前半自动化</li>
+</ul>
+
+<h2>📝 更新日志</h2>
+
+<table>
+  <tr><th>版本</th><th>日期</th><th>变更</th></tr>
+  <tr><td>v2.3</td><td>2026-05-17</td><td>修复 PIN 加入流程（改用 keyboard.type 触发 React 事件）、WebSocket 代理、截图路径</td></tr>
+  <tr><td>v2.1</td><td>2026-05-17</td><td>iframe 支持、多玩家加入、游戏主持功能、Cookie 自动处理</td></tr>
+  <tr><td>v2.0</td><td>2026-05-17</td><td>初始版本：Playwright + Socket.IO + React fiber 遍历架构</td></tr>
+</table>
+
+<a href="/" class="back-link">← 返回控制面板</a>
+
+</body>
+</html>

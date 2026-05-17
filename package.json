@@ -1,0 +1,17 @@
+{
+  "name": "blooket-crawler",
+  "version": "1.0.0",
+  "description": "远程控制的 Blooket 自动答题与游戏作弊爬虫",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "playwright": "^1.52.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "socket.io": "^4.7.4",
+    "socket.io-client": "^4.8.3"
+  }
+}
