@@ -35,8 +35,15 @@ chromium.use(StealthPlugin());
             var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
             document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
               var t=(c.textContent||'').trim();
-              if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0)c.click();
+              if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0)c.click();clicked=true;;
             });
+              if(!clicked){
+                document.querySelectorAll('div').forEach(function(d){
+                  if(clicked)return;
+                  var t=(d.textContent||'').trim();
+                  if(ca.some(function(a){return(a||'').toString().trim()===t})&&d.offsetHeight>0&&d.offsetHeight<200){d.click();clicked=true;}
+                });
+              }
           }
 
           // 2. CHEST SELECTION - pick best

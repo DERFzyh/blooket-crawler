@@ -96,10 +96,20 @@ var cr=s.crypto,pw=s.password,pwOpts=s.passwordOptions;
 // 1. Answer question
 if(qt&&s.question.correctAnswers){
 var ca=Array.isArray(s.question.correctAnswers)?s.question.correctAnswers:[s.question.correctAnswers];
+var clicked=false;
 document.querySelectorAll('[class*="answerContainer"]').forEach(function(c){
+if(clicked)return;
 var t=(c.textContent||'').trim();
-if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();console.log('[Bot] answered: '+t)}
+if(ca.some(function(a){return(a||'').toString().trim()===t})&&c.offsetHeight>0){c.click();clicked=true;console.log('[Bot] answered: '+t)}
 });
+// Fallback: click any visible div with matching text
+if(!clicked){
+document.querySelectorAll('div').forEach(function(d){
+if(clicked)return;
+var t=(d.textContent||'').trim();
+if(ca.some(function(a){return(a||'').toString().trim()===t})&&d.offsetHeight>0&&d.offsetHeight<200){d.click();clicked=true;console.log('[Bot] fallback-clicked: '+t)}
+});
+}
 }
 
 // 2. CHEST SELECTION - pick best
