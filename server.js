@@ -117,7 +117,7 @@ if(ce.length>bestIdx&&ce[bestIdx].offsetHeight>0){ce[bestIdx].click();console.lo
 
 // 3. Fishing auto-click (cast/fish/reel during fishing phase)
 if((weight!==undefined||lure!==undefined)&&!qt){
-document.querySelectorAll('[class*="cast"],[class*="Cast"],[class*="fish"],[class*="Fish"],[class*="reel"],[class*="Reel"]').forEach(function(c){
+document.querySelectorAll('[class*="fishingRod"],[class*="_fishingRod"],[class*="pageButton"],[class*="_pageButton"],[class*="cast"],[class*="reel"]').forEach(function(c){
 if(c.offsetHeight>0){c.click();console.log('[Bot] fishing click')}
 });
 }
