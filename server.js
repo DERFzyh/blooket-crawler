@@ -11,6 +11,7 @@ const { chromium } = require('playwright-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
+const { GOLD_QUEST_CHEST_HACK } = require('./gold-quest-chest-hack');
 
 chromium.use(StealthPlugin());
 const PORT = process.env.PORT || 3458;
@@ -336,6 +337,11 @@ async function startAutoAnswer() {
   log('🤖 自动答题启动');
   for (const f of gamePage.frames()) { try { await f.evaluate(AUTO_ANSWER_JS); } catch(e) {} }
   try { await gamePage.evaluate(AUTO_ANSWER_JS); } catch(e) {}
+  // Also inject Gold Quest chest hack
+  if (botStatus.gameMode === 'gold') {
+    await injectGQChestHack();
+    await gqStartAuto('worst'); // default: pick worst to stay under 10000
+  }
   log('✅ 自动答题已激活（答题+最优宝箱+钓鱼+密码猜测+前进）');
 }
 
@@ -347,6 +353,51 @@ function stopAutoAnswer() {
   io.emit('status', botStatus);
 }
 
+// ====== Gold Quest Chest Manipulation ======
+async function injectGQChestHack() {
+  if (!gamePage || gamePage.isClosed()) return 'no-page';
+  try {
+    for (const f of gamePage.frames()) { try { await f.evaluate(GOLD_QUEST_CHEST_HACK); } catch(e) {} }
+    try { await gamePage.evaluate(GOLD_QUEST_CHEST_HACK); } catch(e) {}
+    log('🎁 Gold Quest 宝箱操控模块已注入');
+    return 'ok';
+  } catch(e) { return 'err:' + e.message; }
+}
+
+async function gqGetChestInfo() {
+  if (!gamePage || gamePage.isClosed()) return null;
+  try {
+    for (const f of gamePage.frames()) {
+      const r = await f.evaluate('window.gqGetChestInfo?window.gqGetChestInfo():null').catch(()=>null);
+      if (r) return r;
+    }
+    return await gamePage.evaluate('window.gqGetChestInfo?window.gqGetChestInfo():null').catch(()=>null);
+  } catch(e) { return null; }
+}
+
+async function gqPickChest(strategy) {
+  if (!gamePage || gamePage.isClosed()) return 'no-page';
+  try {
+    const s = typeof strategy === 'string' ? JSON.stringify(strategy) : strategy;
+    for (const f of gamePage.frames()) {
+      const r = await f.evaluate('window.gqPickChest?window.gqPickChest('+s+'):null').catch(()=>null);
+      if (r) return r;
+    }
+    return await gamePage.evaluate('window.gqPickChest?window.gqPickChest('+s+'):null').catch(()=>null);
+  } catch(e) { return 'err:' + e.message; }
+}
+
+async function gqStartAuto(strategy) {
+  if (!gamePage || gamePage.isClosed()) return 'no-page';
+  try {
+    const opts = JSON.stringify({chestStrategy: strategy||'worst'});
+    for (const f of gamePage.frames()) { try { await f.evaluate('window.gqStartAuto?window.gqStartAuto('+opts+'):null') } catch(e) {} }
+    try { await gamePage.evaluate('window.gqStartAuto?window.gqStartAuto('+opts+'):null'); } catch(e) {}
+    log('🤖 GQ自动模式启动 (strategy:'+(strategy||'worst')+')');
+    return 'ok';
+  } catch(e) { return 'err:' + e.message; }
+}
+
 // ====== Cheats ======
 async function injectCheat(gameMode, cheatType, value) {
   if (!gamePage || gamePage.isClosed()) return 'no-page';
@@ -355,11 +406,15 @@ async function injectCheat(gameMode, cheatType, value) {
     fishing: {
       frenzy: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.isFrenzy!==undefined){s.isFrenzy=true;forceUpdate&&s.forceUpdate()}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);w(n.return,d+1)}w(e[k],0)}return'ok'})()`,
       weight: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.weight!==undefined){s.weight=${value||999};s.forceUpdate&&s.forceUpdate()}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);w(n.return,d+1)}w(e[k],0)}return'ok'})()`,
-      lure: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.lure!==undefined){s.lure=${value||4};s.forceUpdate&&s.forceUpdate()}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);w(n.return,d+1)}w(e[k],0)}return'ok'})()`
+      lure: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.lure!==undefined){s.lure=${value||4};s.forceUpdate&&s.forceUpdate()}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);w(n.return,d+1)}w(e[k],0)}return'ok'})()`,
+      fishSize: `(function(){if(window.__bfsHooked)return 'already-hooked';window.__bfsHooked=true;var _r=Math.random;Math.random=function(){return 0.8+_r()*0.2};var _si=setInterval(function(){try{function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.weight!==undefined){s.weight=9999;s.forceUpdate&&s.forceUpdate()}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);w(n.return,d+1)}for(var el of document.querySelectorAll('*')){var k=Object.keys(el).find(function(x){return x.indexOf('__react')===0});if(k)w(el[k],0)}}catch(e){}},500);return'ok'})()`
     },
     crypto: {
       setCrypto: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.crypto!==undefined){s.crypto=${value||99999};s.forceUpdate&&s.forceUpdate()}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);w(n.return,d+1)}w(e[k],0)}return'ok'})()`,
-      guessPassword: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.password!==undefined&&s.passwordOptions&&s.passwordOptions.length>0){s.password=s.passwordOptions[0];s.forceUpdate&&s.forceUpdate();return'guessed='+s.passwordOptions[0]}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);var r=w(n.return,d+1);if(r)return r}var r=w(e[k],0);if(r)return r}return'no-state'})()`
+      guessPassword: `(function(){try{for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return;try{var s=n.stateNode?.state;if(s&&s.password!==undefined&&s.passwordOptions&&s.passwordOptions.length>0){s.password=s.passwordOptions[0];s.forceUpdate&&s.forceUpdate();return'guessed='+s.passwordOptions[0]}}catch(e){}w(n.child,d+1);w(n.sibling,d+1);var r=w(n.return,d+1);if(r)return r}var r=w(e[k],0);if(r)return r}return'no-state'})()`,
+      drawRig: `(function(){if(window.__chDrawRig)return 'already-rigged';window.__chDrawRig=true;var _r=Math.random;var bias=1.0;Math.random=function(){var v=_r()+bias*0.3;return v>0.9999?0.9999:v};return 'draw-rigged: biased+'+bias})()`,
+      getPassword: `(function(){for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s&&s.correctPassword!==undefined)return s.correctPassword;if(s&&s.password!==undefined&&s.passwordOptions&&s.passwordOptions.length>0)return s.passwordOptions[0]}catch(e){}var r=w(n.child,d+1);if(r)return r;r=w(n.sibling,d+1);if(r)return r;return w(n.return,d+1)}var r=w(e[k],0);if(r)return'pw:'+r}return'no-password'})()`,
+      passwordCheck: `(function(){for(var e of document.querySelectorAll('*')){var k=Object.keys(e).find(function(x){return x.indexOf('__react')===0});if(!k)continue;function w(n,d){if(!n||d>50)return null;try{var s=n.stateNode?.state;if(s&&s.passwordOptions&&s.passwordOptions.length>0){var cp=s.correctPassword||s.passwordOptions[0];var pwOpts=s.passwordOptions;var idx=pwOpts.indexOf(cp);var rank=idx>=0?'# '+(idx+1)+'/'+pwOpts.length:'not-in-list';var weak=(idx===0)?'⚠️ FIRST (极易被猜中!)':(idx===1)?'⚠️ SECOND (容易被猜中!)':(idx===pwOpts.length-1)?'✅ LAST (最安全)':'✓ OK (位置'+ (idx+1)+')';return JSON.stringify({correctPw:cp,position:rank,vulnerability:weak,allOptions:pwOpts})}}catch(e){}var r=w(n.child,d+1);if(r)return r;r=w(n.sibling,d+1);if(r)return r;return w(n.return,d+1)}var r=w(e[k],0);if(r)return r}return'no-state'})()`
     }
   };
   const code = c[gameMode]?.[cheatType];
@@ -405,6 +460,37 @@ io.on('connection', socket => {
       fs.mkdirSync(path.dirname(path.join(__dirname, 'public', fn)), { recursive: true });
       await gamePage.screenshot({ path: path.join(__dirname, 'public', fn), timeout: 10000 }).catch(() => {});
       socket.emit('screenshot', fn);
+    }
+  });
+
+  // ====== Gold Quest Chest Commands ======
+  socket.on('gqInjectChestHack', async () => {
+    const r = await injectGQChestHack();
+    socket.emit('gqResult', { action: 'injectChestHack', result: r });
+  });
+  socket.on('gqGetChestInfo', async () => {
+    const r = await gqGetChestInfo();
+    socket.emit('gqResult', { action: 'getChestInfo', result: r });
+    log('🎁 宝箱信息: ' + JSON.stringify(r).slice(0, 200));
+  });
+  socket.on('gqPickChest', async d => {
+    const r = await gqPickChest(d?.strategy || 'worst');
+    socket.emit('gqResult', { action: 'pickChest', strategy: d?.strategy, result: r });
+    log('🎯 选宝箱 (strategy:' + (d?.strategy || 'worst') + '): ' + JSON.stringify(r).slice(0, 200));
+  });
+  socket.on('gqStartAuto', async d => {
+    const r = await gqStartAuto(d?.strategy || 'worst');
+    socket.emit('gqResult', { action: 'startAuto', strategy: d?.strategy, result: r });
+  });
+  socket.on('gqManipulateSwitch', async () => {
+    if (gamePage && !gamePage.isClosed()) {
+      try {
+        let r = null;
+        for (const f of gamePage.frames()) { r = await f.evaluate('window.gqManipulateSwitch?window.gqManipulateSwitch():null').catch(()=>null); if(r)break }
+        if (!r) r = await gamePage.evaluate('window.gqManipulateSwitch?window.gqManipulateSwitch():null').catch(()=>null);
+        socket.emit('gqResult', { action: 'manipulateSwitch', result: r });
+        log('🔄 Switch操控: ' + r);
+      } catch(e) { socket.emit('gqResult', { action: 'manipulateSwitch', result: 'err:' + e.message }); }
     }
   });
 

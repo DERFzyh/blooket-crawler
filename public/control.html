@@ -163,6 +163,7 @@ function updateCheatButtons() {
     fishing: [
       ['frenzy','永续Frenzy'],
       ['weight','999重量'],
+      ['fishSize','🐟大鱼'],
       ['lure','Max鱼饵']
     ],
     gold: [
@@ -171,7 +172,10 @@ function updateCheatButtons() {
     ],
     crypto: [
       ['setCrypto','设置加密货币'],
-      ['guessPassword','自动猜密码']
+      ['drawRig','🎰抽奖操控'],
+      ['guessPassword','自动猜密码'],
+      ['getPassword','🔑获取密码'],
+      ['passwordCheck','🛡️密码检测']
     ]
   };
   const list = cheats[currentGameMode] || [];
@@ -215,6 +219,10 @@ socket.on('gameState', state => {
   if (state.gold !== undefined) el.innerHTML += ` 💰 金币: ${state.gold}`;
   if (state.weight !== undefined) el.innerHTML += ` ⚖️ 重量: ${state.weight} lbs`;
   if (state.crypto !== undefined) el.innerHTML += ` 🔐 加密货币: ${state.crypto}`;
+  if (state.correctPassword !== undefined) el.innerHTML += ` 🔑 密码: ${state.correctPassword}`;
+  if (state.passwordOptions && state.passwordOptions.length > 0) {
+    el.innerHTML += `<br>📋 密码选项: ${state.passwordOptions.slice(0,8).join(', ')}${state.passwordOptions.length>8?'...':''}`;
+  }
 });
 
 socket.on('screenshot', path => {
@@ -223,6 +231,22 @@ socket.on('screenshot', path => {
 });
 
 socket.on('cheatResult', data => {
+  if (data.cheatType === 'passwordCheck' && data.result) {
+    try {
+      const r = JSON.parse(data.result);
+      const el = document.getElementById('gameState');
+      el.innerHTML = `🔐 <b>正确密码:</b> ${r.correctPw}<br>
+        📊 <b>位置:</b> ${r.position}<br>
+        🛡️ <b>安全性:</b> ${r.vulnerability}<br>
+        📋 <b>所有选项:</b> ${(r.allOptions||[]).join(', ')}`;
+      addLog(`🛡️ 密码: ${r.correctPw} | ${r.position} | ${r.vulnerability}`);
+      return;
+    } catch(e) {}
+  }
+  if (data.cheatType === 'getPassword' && data.result) {
+    const el = document.getElementById('gameState');
+    el.innerHTML = `🔑 <b>正确密码:</b> ${data.result}`;
+  }
   addLog(`🎯 [${data.cheatType}] → ${data.result}`);
 });
 
