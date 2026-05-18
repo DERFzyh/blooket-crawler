@@ -160,6 +160,9 @@ function addLog(msg) {
 function updateCheatButtons() {
   const container = document.getElementById('cheatButtons');
   const cheats = {
+    global: [
+      ['turbo','⚡Turbo极速']
+    ],
     fishing: [
       ['frenzy','永续Frenzy'],
       ['weight','999重量'],
@@ -178,7 +181,7 @@ function updateCheatButtons() {
       ['passwordCheck','🛡️密码检测']
     ]
   };
-  const list = cheats[currentGameMode] || [];
+  const list = (cheats['global'] || []).concat(cheats[currentGameMode] || []);
   container.innerHTML = list.map(([type, label]) => 
     `<button class="btn-warning" onclick="doCheat('${type}')">${label}</button>`
   ).join('');
@@ -261,7 +264,10 @@ function doAutoAnswer() { socket.emit('startAutoAnswer'); }
 function doStop() { socket.emit('stop'); }
 
 function doCheat(type) {
-  socket.emit('cheat', { gameMode: currentGameMode, cheatType: type, value: null });
+  // Global cheats always use 'global' mode, others use detected mode
+  const globalCheats = ['turbo'];
+  const mode = globalCheats.includes(type) ? 'global' : currentGameMode;
+  socket.emit('cheat', { gameMode: mode, cheatType: type, value: null });
 }
 
 function doScreenshot() { socket.emit('screenshot'); }
