@@ -171,6 +171,12 @@ function updateCheatButtons() {
     ],
     gold: [
       ['setGold','设置金币'],
+      ['pickSwap','🔀选Swap'],
+      ['pickTriple','✖️选Triple'],
+      ['pickDouble','✖️选Double'],
+      ['chestTarget','🎯目标:Swap','Swap'],
+      ['chestTarget','🎯目标:Triple','Triple'],
+      ['chestTarget','🎯目标:Double','Double'],
       ['esp','宝箱ESP']
     ],
     crypto: [
@@ -182,8 +188,8 @@ function updateCheatButtons() {
     ]
   };
   const list = (cheats['global'] || []).concat(cheats[currentGameMode] || []);
-  container.innerHTML = list.map(([type, label]) => 
-    `<button class="btn-warning" onclick="doCheat('${type}')">${label}</button>`
+  container.innerHTML = list.map(([type, label, val]) => 
+    `<button class="btn-warning" onclick="doCheat('${type}'${val ? ",'"+val+"'" : ''})">${label}</button>`
   ).join('');
 }
 
@@ -263,11 +269,11 @@ function doJoin() {
 function doAutoAnswer() { socket.emit('startAutoAnswer'); }
 function doStop() { socket.emit('stop'); }
 
-function doCheat(type) {
+function doCheat(type, val) {
   // Global cheats always use 'global' mode, others use detected mode
   const globalCheats = ['turbo'];
   const mode = globalCheats.includes(type) ? 'global' : currentGameMode;
-  socket.emit('cheat', { gameMode: mode, cheatType: type, value: null });
+  socket.emit('cheat', { gameMode: mode, cheatType: type, value: val || null });
 }
 
 function doScreenshot() { socket.emit('screenshot'); }
